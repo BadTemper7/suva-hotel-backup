@@ -1,8 +1,8 @@
-// pages/admin/Reports.jsx
+// pages/Reports.jsx
 import React, { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { useReportStore } from "../../stores/reportStore.js";
-import Loader from "../../components/layout/Loader.jsx";
+import { useReportStore } from "../stores/reportStore.js";
+import Loader from "../components/layout/Loader.jsx";
 import toast, { Toaster } from "react-hot-toast";
 import {
   FiDownload,
@@ -27,7 +27,7 @@ import {
   FiTrash2,
   FiPlus,
 } from "react-icons/fi";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
 
 const Reports = () => {
   const {

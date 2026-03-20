@@ -553,7 +553,7 @@ export const useReservationStore = create((set, get) => ({
     rooms = [],
     payment,
     discountImageFile = null,
-    receiptData = null, // Changed from receiptImageFile to receiptData object
+    receiptData = null,
   }) => {
     set({ loading: true, error: null });
     try {

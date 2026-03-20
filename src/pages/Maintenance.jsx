@@ -1,4 +1,4 @@
-// pages/admin/MaintenanceDashboard.jsx
+// pages/MaintenanceDashboard.jsx
 import React, { useState, useEffect } from "react";
 import {
   FiHome,
@@ -16,10 +16,10 @@ import {
   FiSearch,
 } from "react-icons/fi";
 import { format, startOfDay, endOfDay } from "date-fns";
-import { useRoomStore } from "../../stores/roomStore.js";
-import Loader from "../../components/layout/Loader.jsx";
+import { useRoomStore } from "../stores/roomStore.js";
+import Loader from "../components/layout/Loader.jsx";
 import toast, { Toaster } from "react-hot-toast";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
 
 export default function Maintenance() {
   const { rooms, fetchRooms, updateRoomStatus, loading } = useRoomStore();

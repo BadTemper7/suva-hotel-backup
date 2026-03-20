@@ -15,12 +15,12 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
-import Loader from "../../components/layout/Loader.jsx";
-import RoomReservationModal from "../../components/modals/RoomReservationModal.jsx";
-import { useReservationStore } from "../../stores/reservationStore.js";
-import { useReservationRoomStore } from "../../stores/reservationRoomStore.js";
-import { getUserRole } from "../../app/auth.js";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Loader from "../components/layout/Loader.jsx";
+import RoomReservationModal from "../components/modals/RoomReservationModal.jsx";
+import { useReservationStore } from "../stores/reservationStore.js";
+import { useReservationRoomStore } from "../stores/reservationRoomStore.js";
+import { getUserRole } from "../app/auth.js";
+import Pagination from "../components/ui/Pagination.jsx";
 
 function ImageCell({ images, roomNo, onPreview }) {
   const arr = Array.isArray(images) ? images : [];
@@ -387,7 +387,7 @@ export default function RoomReservation() {
 
   const navigateToRoom = (roomId) => {
     if (roomId) {
-      navigate(`/admin/rooms/${roomId}`);
+      navigate(`/rooms/${roomId}`);
     }
   };
 

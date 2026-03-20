@@ -24,13 +24,13 @@ import {
 } from "react-icons/fi";
 import { Helmet } from "react-helmet";
 
-import Loader from "../../components/layout/Loader.jsx";
-import { useReservationStore } from "../../stores/reservationStore.js";
-import { useAmenityStore } from "../../stores/amenityStore.js";
-import { usePaymentStore } from "../../stores/paymentStore.js";
-import { useGuestStore } from "../../stores/guestStore.js";
-import NumberInput from "../../components/ui/NumberInput";
-import Stepper from "../../components/ui/NumberInput";
+import Loader from "../components/layout/Loader.jsx";
+import { useReservationStore } from "../stores/reservationStore.js";
+import { useAmenityStore } from "../stores/amenityStore.js";
+import { usePaymentStore } from "../stores/paymentStore.js";
+import { useGuestStore } from "../stores/guestStore.js";
+import NumberInput from "../components/ui/NumberInput.jsx";
+import Stepper from "../components/ui/NumberInput.jsx";
 
 // Get admin info from localStorage
 const admin_info = JSON.parse(localStorage.getItem("suva_admin_user") || "{}");
@@ -1079,7 +1079,7 @@ export default function ReservationProcess() {
       const result = await createFullReservation(payload);
       toast.success("Reservation created successfully!");
 
-      navigate(`/admin/billing/`);
+      navigate(`/billing/`);
     } catch (err) {
       console.error("Reservation creation error:", err);
 

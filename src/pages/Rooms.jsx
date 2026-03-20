@@ -15,12 +15,12 @@ import {
   FiSun,
 } from "react-icons/fi";
 
-import Loader from "../../components/layout/Loader.jsx";
-import RoomModal from "../../components/modals/RoomModal.jsx";
-import ImagePreviewModal from "../../components/modals/ImagePreviewModal.jsx";
-import Pagination from "../../components/ui/Pagination.jsx";
-import { useRoomStore } from "../../stores/roomStore.js";
-import { getUserRole } from "../../app/auth.js";
+import Loader from "../components/layout/Loader.jsx";
+import RoomModal from "../components/modals/RoomModal.jsx";
+import ImagePreviewModal from "../components/modals/ImagePreviewModal.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
+import { useRoomStore } from "../stores/roomStore.js";
+import { getUserRole } from "../app/auth.js";
 import toast, { Toaster } from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
@@ -419,7 +419,7 @@ export default function Rooms() {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => navigate("/admin/room-types")}
+                onClick={() => navigate("/room-types")}
                 className="
                   h-11 px-5 rounded-xl 
                   border border-gray-200 
@@ -438,7 +438,7 @@ export default function Rooms() {
 
               <button
                 type="button"
-                onClick={() => navigate("/admin/amenities")}
+                onClick={() => navigate("/amenities")}
                 className="
                   h-11 px-5 rounded-xl 
                   border border-gray-200 

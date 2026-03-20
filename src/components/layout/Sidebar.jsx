@@ -18,16 +18,16 @@ import {
 import Logo from "./Logo"; // Import the Logo component
 
 const NAV = [
-  { to: "/admin/dashboard", label: "Dashboard", icon: FiGrid },
-  { to: "/admin/rooms", label: "Rooms", icon: FiHome },
-  { to: "/admin/reservations", label: "Reservations", icon: FiCalendar },
-  { to: "/admin/guests", label: "Guest", icon: FiUsers },
-  { to: "/admin/users", label: "Users", icon: FiShield },
-  { to: "/admin/billing", label: "Billing", icon: FiCreditCard },
-  { to: "/admin/reports", label: "Reports", icon: FiBarChart2 },
-  { to: "/admin/maintenance", label: "Maintenance", icon: FiTool },
-  { to: "/admin/lost-found", label: "Lost & Found", icon: FiSearch },
-  { to: "/admin/settings", label: "Settings", icon: FiSettings },
+  { to: "/dashboard", label: "Dashboard", icon: FiGrid },
+  { to: "/rooms", label: "Rooms", icon: FiHome },
+  { to: "/reservations", label: "Reservations", icon: FiCalendar },
+  { to: "/guests", label: "Guest", icon: FiUsers },
+  { to: "/users", label: "Users", icon: FiShield },
+  { to: "/billing", label: "Billing", icon: FiCreditCard },
+  { to: "/reports", label: "Reports", icon: FiBarChart2 },
+  { to: "/maintenance", label: "Maintenance", icon: FiTool },
+  { to: "/lost-found", label: "Lost & Found", icon: FiSearch },
+  { to: "/settings", label: "Settings", icon: FiSettings },
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {

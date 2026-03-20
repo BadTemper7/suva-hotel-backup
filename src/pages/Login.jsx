@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { setAuthed, setToken, isAuthed, setUser } from "../../app/auth.js";
-import Loader from "../../components/layout/Loader.jsx";
+import { setAuthed, setToken, isAuthed, setUser } from "../app/auth.js";
+import Loader from "../components/layout/Loader.jsx";
 import { FiEye, FiEyeOff } from "react-icons/fi";
-import { LogoVariations } from "../../components/layout/Logo";
+import { LogoVariations } from "../components/layout/Logo.jsx";
 
 const API_URL =
   import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
@@ -12,7 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = useMemo(
-    () => location.state?.from || "/admin/dashboard",
+    () => location.state?.from || "/dashboard",
     [location.state],
   );
 

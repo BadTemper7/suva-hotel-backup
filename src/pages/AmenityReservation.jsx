@@ -1,4 +1,4 @@
-// pages/admin/AmenityReservation.jsx
+// pages/AmenityReservation.jsx
 import { useEffect, useState, useMemo } from "react";
 import {
   FiSearch,
@@ -8,15 +8,15 @@ import {
   FiPlus,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
-import { useReservation } from "../../context/ReservationContext";
-import { useAmenityStore } from "../../stores/amenityStore";
+import { useReservation } from "../context/ReservationContext";
+import { useAmenityStore } from "../stores/amenityStore";
 import {
   useReservationStore,
   reservationHelpers,
-} from "../../stores/reservationStore";
+} from "../stores/reservationStore";
 import toast, { Toaster } from "react-hot-toast";
-import Loader from "../../components/layout/Loader";
-import Pagination from "../../components/ui/Pagination";
+import Loader from "../components/layout/Loader";
+import Pagination from "../components/ui/Pagination";
 import NotFound from "./NotFound";
 
 export default function AmenityReservation() {
@@ -306,7 +306,7 @@ export default function AmenityReservation() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate(`/admin/reservations/${reservation?._id}`)}
+            onClick={() => navigate(`/reservations/${reservation?._id}`)}
             className="h-10 px-4 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm font-medium inline-flex items-center gap-2"
           >
             <FiChevronLeft /> Back to Reservation

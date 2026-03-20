@@ -3,9 +3,9 @@ import { FiPlus, FiTrash2, FiEdit2, FiSearch, FiFilter } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
-import RoomTypeModal from "../../components/modals/RoomTypeModal";
-import { useRoomTypeStore } from "../../stores/roomTypeStore";
-import Loader from "../../components/layout/Loader.jsx";
+import RoomTypeModal from "../components/modals/RoomTypeModal.jsx";
+import { useRoomTypeStore } from "../stores/roomTypeStore.js";
+import Loader from "../components/layout/Loader.jsx";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
@@ -47,9 +47,7 @@ function RoomTypeCard({ type, onEdit, onDelete }) {
       {/* Accent bar */}
       <div
         className={`absolute inset-x-0 top-0 h-1.5 ${
-          type.status === "active"
-            ? "bg-[#0c2bfc]"
-            : "bg-gray-300"
+          type.status === "active" ? "bg-[#0c2bfc]" : "bg-gray-300"
         }`}
       />
 

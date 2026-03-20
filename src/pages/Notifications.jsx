@@ -13,10 +13,10 @@ import {
   FiRefreshCw,
   FiChevronRight,
 } from "react-icons/fi";
-import { useNotificationStore } from "../../stores/notificationStore.js";
+import { useNotificationStore } from "../stores/notificationStore.js";
 import toast, { Toaster } from "react-hot-toast";
-import Loader from "../../components/layout/Loader.jsx";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Loader from "../components/layout/Loader.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
 
 function iconFor(type) {
   switch (type) {

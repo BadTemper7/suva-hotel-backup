@@ -12,11 +12,11 @@ import {
   FiFilter,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { useReservationStore } from "../../stores/reservationStore";
+import { useReservationStore } from "../stores/reservationStore.js";
 import toast, { Toaster } from "react-hot-toast";
-import Loader from "../../components/layout/Loader";
+import Loader from "../components/layout/Loader.jsx";
 import { Helmet } from "react-helmet";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
 
 function startOfDayISO(d = new Date()) {
   const x = new Date(d);
@@ -227,7 +227,7 @@ export default function AvailableToday() {
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate("/admin/rooms")}
+              onClick={() => navigate("/rooms")}
               className="
                 h-11 px-5 rounded-xl 
                 border border-gray-200 
@@ -247,7 +247,7 @@ export default function AvailableToday() {
 
             <button
               type="button"
-              onClick={() => navigate("/admin/reservation-process")}
+              onClick={() => navigate("/reservation-process")}
               className="
                 h-11 px-5 rounded-xl 
                 bg-[#0c2bfc] 
@@ -358,7 +358,7 @@ export default function AvailableToday() {
             </div>
             <button
               type="button"
-              onClick={() => navigate("/admin/rooms")}
+              onClick={() => navigate("/rooms")}
               className="
                 mt-4 h-10 px-4 rounded-xl 
                 border border-gray-200 

@@ -9,8 +9,7 @@ export default function App() {
   const element = useRoutes(routes);
 
   // Only show idle logout modal if user is authenticated AND not on login page
-  const showIdleModal =
-    isAuthed() && !location.pathname.includes("/admin/login");
+  const showIdleModal = isAuthed() && !location.pathname.includes("/login");
 
   return (
     <>

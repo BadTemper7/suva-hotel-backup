@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { FiEdit2, FiPlus, FiSearch, FiTrash2, FiFilter } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
-import Loader from "../../components/layout/Loader.jsx";
-import PaymentOptionModal from "../../components/modals/PaymentOptionModal.jsx";
-import Pagination from "../../components/ui/Pagination.jsx";
-import { usePaymentOptionStore } from "../../stores/paymentOptionStore.js";
-import { getUserRole } from "../../app/auth.js";
+import Loader from "../components/layout/Loader.jsx";
+import PaymentOptionModal from "../components/modals/PaymentOptionModal.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
+import { usePaymentOptionStore } from "../stores/paymentOptionStore.js";
+import { getUserRole } from "../app/auth.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",

@@ -17,12 +17,12 @@ import {
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
-import Loader from "../../components/layout/Loader.jsx";
-import ReservationStatusModal from "../../components/modals/ReservationStatusModal.jsx";
-import { useReservationStore } from "../../stores/reservationStore.js";
-import { getUserRole } from "../../app/auth.js";
+import Loader from "../components/layout/Loader.jsx";
+import ReservationStatusModal from "../components/modals/ReservationStatusModal.jsx";
+import { useReservationStore } from "../stores/reservationStore.js";
+import { getUserRole } from "../app/auth.js";
 import { Helmet } from "react-helmet";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
 
 const STATUS_STYLES = {
   pending: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
@@ -385,7 +385,7 @@ export default function Reservations() {
   };
 
   const goToAvailableRoomsToday = () => {
-    navigate("/admin/available-today");
+    navigate("/available-today");
   };
 
   return (
@@ -471,7 +471,7 @@ export default function Reservations() {
 
               <button
                 type="button"
-                onClick={() => navigate("/admin/reservation-process")}
+                onClick={() => navigate("/reservation-process")}
                 className="
                   h-11 px-5 rounded-xl 
                   bg-[#0c2bfc] 
@@ -566,7 +566,7 @@ export default function Reservations() {
               key={r._id}
               reservation={r}
               onEdit={openEdit}
-              onView={(r) => navigate(`/admin/reservations/${r._id}/rooms`)}
+              onView={(r) => navigate(`/reservations/${r._id}/rooms`)}
               onDelete={openDeleteModal}
               selected={selectedReservations.includes(r._id)}
               onSelect={toggleSelectReservation}
@@ -808,7 +808,7 @@ export default function Reservations() {
                             <button
                               type="button"
                               onClick={() =>
-                                navigate(`/admin/reservations/${r._id}/rooms`)
+                                navigate(`/reservations/${r._id}/rooms`)
                               }
                               className="
                                 h-10 px-4 rounded-xl 

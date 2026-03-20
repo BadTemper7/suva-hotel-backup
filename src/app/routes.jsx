@@ -6,35 +6,33 @@ import Loader from "../components/layout/Loader.jsx";
 import { ReservationProvider } from "../context/ReservationContext.jsx";
 
 // Lazy pages
-const Dashboard = lazy(() => import("../pages/admin/Dashboard.jsx"));
-const Rooms = lazy(() => import("../pages/admin/Rooms.jsx"));
-const Reservations = lazy(() => import("../pages/admin/Reservations.jsx"));
+const Dashboard = lazy(() => import("../pages/Dashboard.jsx"));
+const Rooms = lazy(() => import("../pages/Rooms.jsx"));
+const Reservations = lazy(() => import("../pages/Reservations.jsx"));
 const ReservationProcess = lazy(
-  () => import("../pages/admin/ReservationProcess.jsx"),
+  () => import("../pages/ReservationProcess.jsx"),
 );
-const RoomReservation = lazy(
-  () => import("../pages/admin/RoomReservation.jsx"),
-);
+const RoomReservation = lazy(() => import("../pages/RoomReservation.jsx"));
 const AmenityReservation = lazy(
-  () => import("../pages/admin/AmenityReservation.jsx"),
+  () => import("../pages/AmenityReservation.jsx"),
 );
-const Guests = lazy(() => import("../pages/admin/Guests.jsx"));
-const Billing = lazy(() => import("../pages/admin/Billing.jsx"));
-const Maintenance = lazy(() => import("../pages/admin/Maintenance.jsx"));
-const LostFound = lazy(() => import("../pages/admin/LostFound.jsx"));
-const Settings = lazy(() => import("../pages/admin/Settings.jsx"));
-const Profile = lazy(() => import("../pages/admin/Profile.jsx"));
-const Login = lazy(() => import("../pages/admin/Login.jsx"));
-const NotFound = lazy(() => import("../pages/admin/NotFound.jsx"));
-const Reports = lazy(() => import("../pages/admin/Reports.jsx"));
-const Users = lazy(() => import("../pages/admin/Users.jsx"));
-const Notifications = lazy(() => import("../pages/admin/Notifications.jsx"));
-const RoomTypes = lazy(() => import("../pages/admin/RoomTypes.jsx"));
-const Amenities = lazy(() => import("../pages/admin/Amenities.jsx"));
-const AvailableToday = lazy(() => import("../pages/admin/AvailableToday.jsx"));
-const DiscountTypes = lazy(() => import("../pages/admin/DiscountTypes.jsx"));
-const PaymentOption = lazy(() => import("../pages/admin/PaymentOption.jsx"));
-const PaymentTypes = lazy(() => import("../pages/admin/PaymentTypes.jsx"));
+const Guests = lazy(() => import("../pages/Guests.jsx"));
+const Billing = lazy(() => import("../pages/Billing.jsx"));
+const Maintenance = lazy(() => import("../pages/Maintenance.jsx"));
+const LostFound = lazy(() => import("../pages/LostFound.jsx"));
+const Settings = lazy(() => import("../pages/Settings.jsx"));
+const Profile = lazy(() => import("../pages/Profile.jsx"));
+const Login = lazy(() => import("../pages/Login.jsx"));
+const NotFound = lazy(() => import("../pages/NotFound.jsx"));
+const Reports = lazy(() => import("../pages/Reports.jsx"));
+const Users = lazy(() => import("../pages/Users.jsx"));
+const Notifications = lazy(() => import("../pages/Notifications.jsx"));
+const RoomTypes = lazy(() => import("../pages/RoomTypes.jsx"));
+const Amenities = lazy(() => import("../pages/Amenities.jsx"));
+const AvailableToday = lazy(() => import("../pages/AvailableToday.jsx"));
+const DiscountTypes = lazy(() => import("../pages/DiscountTypes.jsx"));
+const PaymentOption = lazy(() => import("../pages/PaymentOption.jsx"));
+const PaymentTypes = lazy(() => import("../pages/PaymentTypes.jsx"));
 
 const withLoader = (el, label) => (
   <Suspense
@@ -63,13 +61,13 @@ const withReservationProvider = (el, label) => (
 );
 
 export default [
-  { path: "/admin/login", element: withLoader(<Login />, "Loading login...") },
+  { path: "/", element: withLoader(<Login />, "Loading login...") },
 
   {
     element: <ProtectedRoute />,
     children: [
       {
-        path: "/admin",
+        path: "/",
         element: <AdminLayout />,
         children: [
           {

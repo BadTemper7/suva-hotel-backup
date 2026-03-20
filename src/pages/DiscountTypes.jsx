@@ -1,20 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  FiEdit2,
-  FiPlus,
-  FiSearch,
-  FiChevronLeft,
-  FiChevronRight,
-  FiTrash2,
-  FiFilter,
-} from "react-icons/fi";
+import { FiEdit2, FiPlus, FiSearch, FiTrash2, FiFilter } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
-import Loader from "../../components/layout/Loader.jsx";
-import AmenityModal from "../../components/modals/AmenityModal.jsx";
-import { useAmenityStore } from "../../stores/amenityStore.js";
-import { getUserRole } from "../../app/auth.js";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Loader from "../components/layout/Loader.jsx";
+import DiscountTypeModal from "../components/modals/DiscountTypeModal.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
+import { useDiscountTypeStore } from "../stores/discountStore.js";
+import { getUserRole } from "../app/auth.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
@@ -40,13 +32,7 @@ function StatusPill({ value }) {
   );
 }
 
-function AmenityCard({ amenity, onEdit, selected, onSelect }) {
-  const money = (n) =>
-    new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-    }).format(n || 0);
-
+function DiscountCard({ discount, onEdit, selected, onSelect }) {
   return (
     <div
       className="
@@ -60,7 +46,7 @@ function AmenityCard({ amenity, onEdit, selected, onSelect }) {
       <input
         type="checkbox"
         checked={selected}
-        onChange={() => onSelect(amenity._id)}
+        onChange={() => onSelect(discount._id)}
         className="
           mt-1 h-5 w-5 rounded border-gray-300 
           text-[#0c2bfc] focus:ring-[#0c2bfc]/20
@@ -68,10 +54,20 @@ function AmenityCard({ amenity, onEdit, selected, onSelect }) {
       />
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-semibold text-gray-900 truncate">
-          {amenity.name}
+        <div className="flex items-center gap-3">
+          <div className="text-sm font-semibold text-gray-900 truncate">
+            {discount.name}
+          </div>
+          <span
+            className="
+            px-2.5 py-0.5 rounded-full text-xs font-medium
+            bg-[#0c2bfc]/10 text-[#0c2bfc]
+          "
+          >
+            {discount.discountPercent}%
+          </span>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs">
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
           <div className="flex items-center gap-1 text-gray-600">
             <svg
               className="w-4 h-4 text-[#0c2bfc]"
@@ -83,10 +79,12 @@ function AmenityCard({ amenity, onEdit, selected, onSelect }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
               />
             </svg>
-            <span className="font-medium">{money(amenity.rate ?? 0)}</span>
+            <span className="font-medium">
+              Priority: {discount.discountPriority}
+            </span>
           </div>
           <div className="flex items-center gap-1 text-gray-600">
             <svg
@@ -99,20 +97,25 @@ function AmenityCard({ amenity, onEdit, selected, onSelect }) {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
               />
             </svg>
-            <span className="font-medium">Stock: {amenity.stock ?? 0}</span>
+            <span className="font-medium">
+              Rooms:{" "}
+              {discount.appliesToAllRooms
+                ? "All"
+                : `${discount.maxRoomCount || 0} max`}
+            </span>
           </div>
         </div>
         <div className="mt-3">
-          <StatusPill value={amenity.status} />
+          <StatusPill value={discount.status} />
         </div>
       </div>
 
       <button
         type="button"
-        onClick={() => onEdit(amenity)}
+        onClick={() => onEdit(discount)}
         className="
           h-10 px-4 rounded-xl 
           border border-gray-200 
@@ -131,48 +134,54 @@ function AmenityCard({ amenity, onEdit, selected, onSelect }) {
   );
 }
 
-export default function Amenities() {
-  const amenities = useAmenityStore((s) => s.amenities);
-  const fetchAmenities = useAmenityStore((s) => s.fetchAmenities);
-  const createAmenity = useAmenityStore((s) => s.createAmenity);
-  const updateAmenity = useAmenityStore((s) => s.updateAmenity);
-  const deleteMultipleAmenities = useAmenityStore(
-    (s) => s.deleteMultipleAmenities,
+export default function Discounts() {
+  const discounts = useDiscountTypeStore((s) => s.discounts);
+  const fetchDiscounts = useDiscountTypeStore((s) => s.fetchDiscounts);
+  const createDiscount = useDiscountTypeStore((s) => s.createDiscount);
+  const updateDiscount = useDiscountTypeStore((s) => s.updateDiscount);
+  const deleteMultipleDiscounts = useDiscountTypeStore(
+    (s) => s.deleteMultipleDiscounts,
   );
-  const loading = useAmenityStore((s) => s.loading);
+  const loading = useDiscountTypeStore((s) => s.loading);
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [modal, setModal] = useState({
     open: false,
     mode: "add",
-    amenity: null,
+    discount: null,
   });
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [selectedDiscounts, setSelectedDiscounts] = useState([]);
 
   const role = getUserRole();
   const isAdmin = role === "admin" || role === "superadmin";
 
   useEffect(() => {
-    fetchAmenities().catch((err) =>
-      toast.error(err.message || "Failed to fetch amenities"),
+    fetchDiscounts().catch((err) =>
+      toast.error(err.message || "Failed to fetch discounts"),
     );
-  }, [fetchAmenities]);
+  }, [fetchDiscounts]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return amenities.filter((a) => {
-      const st = normalizeStatus(a.status);
+    return discounts.filter((d) => {
+      const st = normalizeStatus(d.status);
       if (statusFilter !== "all" && st !== statusFilter) return false;
+
+      if (typeFilter !== "all") {
+        if (typeFilter === "allRooms" && !d.appliesToAllRooms) return false;
+        if (typeFilter === "perId" && !d.isPerId) return false;
+      }
+
       if (!s) return true;
-      const name = String(a.name ?? "").toLowerCase();
-      return name.includes(s) || st.includes(s);
+      return d.name?.toLowerCase().includes(s) || st.includes(s);
     });
-  }, [amenities, q, statusFilter]);
+  }, [discounts, q, statusFilter, typeFilter]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -185,23 +194,24 @@ export default function Amenities() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const openAdd = () => setModal({ open: true, mode: "add", amenity: null });
-  const openEdit = (amenity) => setModal({ open: true, mode: "edit", amenity });
+  const openAdd = () => setModal({ open: true, mode: "add", discount: null });
+  const openEdit = (discount) =>
+    setModal({ open: true, mode: "edit", discount });
   const closeModal = () =>
-    setModal({ open: false, mode: "add", amenity: null });
+    setModal({ open: false, mode: "add", discount: null });
 
-  const saveAmenity = async (payload) => {
+  const saveDiscount = async (payload) => {
     const normalizedStatus = normalizeStatus(payload.status);
     try {
       if (modal.mode === "add") {
-        await createAmenity({ ...payload, status: normalizedStatus });
-        toast.success("Amenity created successfully");
+        await createDiscount({ ...payload, status: normalizedStatus });
+        toast.success("Discount created successfully");
       } else {
-        await updateAmenity(payload._id, {
+        await updateDiscount(payload._id, {
           ...payload,
           status: normalizedStatus,
         });
-        toast.success("Amenity updated successfully");
+        toast.success("Discount updated successfully");
       }
       closeModal();
     } catch (err) {
@@ -209,34 +219,33 @@ export default function Amenities() {
     }
   };
 
-  const toggleSelectAmenity = (id) => {
-    setSelectedAmenities((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
+  const toggleSelectDiscount = (id) => {
+    setSelectedDiscounts((prev) =>
+      prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id],
     );
   };
 
   const toggleSelectAll = () => {
-    if (selectedAmenities.length === paged.length) setSelectedAmenities([]);
-    else setSelectedAmenities(paged.map((a) => a._id));
+    if (selectedDiscounts.length === paged.length) setSelectedDiscounts([]);
+    else setSelectedDiscounts(paged.map((d) => d._id));
   };
 
   const handleDeleteSelected = async () => {
-    if (selectedAmenities.length === 0) return;
+    if (selectedDiscounts.length === 0) return;
     if (
       !confirm(
-        `Are you sure you want to delete ${selectedAmenities.length} amenity(ies)?`,
+        `Are you sure you want to delete ${selectedDiscounts.length} discount(s)?`,
       )
     )
       return;
-
     try {
-      await deleteMultipleAmenities(selectedAmenities);
+      await deleteMultipleDiscounts(selectedDiscounts);
       toast.success(
-        `${selectedAmenities.length} amenity(ies) deleted successfully`,
+        `${selectedDiscounts.length} discount(s) deleted successfully`,
       );
-      setSelectedAmenities([]);
+      setSelectedDiscounts([]);
     } catch (err) {
-      toast.error(err.message || "Failed to delete selected amenities");
+      toast.error(err.message || "Failed to delete selected discounts");
     }
   };
 
@@ -258,15 +267,15 @@ export default function Amenities() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="text-xl font-bold text-gray-900">
-            Amenity Management
+            Discount Management
           </div>
           <div className="text-sm text-gray-600">
-            Manage resort amenities, rates, stock, and availability
+            Manage discount types, percentages, and application rules
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          {isAdmin && selectedAmenities.length > 0 && (
+          {isAdmin && selectedDiscounts.length > 0 && (
             <button
               onClick={handleDeleteSelected}
               disabled={loading}
@@ -282,7 +291,7 @@ export default function Amenities() {
               "
             >
               <FiTrash2 className="w-4 h-4" />
-              Delete ({selectedAmenities.length})
+              Delete ({selectedDiscounts.length})
             </button>
           )}
 
@@ -300,7 +309,7 @@ export default function Amenities() {
                 active:translate-y-0
               "
             >
-              <FiPlus className="w-4 h-4" /> Add Amenity
+              <FiPlus className="w-4 h-4" /> Add Discount
             </button>
           )}
         </div>
@@ -337,7 +346,7 @@ export default function Amenities() {
                     w-full bg-transparent outline-none 
                     text-sm text-gray-800 placeholder-gray-400
                   "
-                  placeholder="Search amenity name, status…"
+                  placeholder="Search discount name, status…"
                 />
               </div>
             </form>
@@ -346,8 +355,26 @@ export default function Amenities() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <FiFilter className="text-gray-400" />
-              <span className="text-sm text-gray-600 font-medium">Status</span>
+              <span className="text-sm text-gray-600 font-medium">Filters</span>
             </div>
+            <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value);
+                setPage(1);
+              }}
+              className="
+                h-11 rounded-xl border border-gray-200 
+                bg-white px-4 text-sm outline-none 
+                focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                text-gray-700 font-medium
+                transition-all duration-200
+              "
+            >
+              <option value="all">All Types</option>
+              <option value="allRooms">All Rooms</option>
+              <option value="perId">Per Guest ID</option>
+            </select>
             <select
               value={statusFilter}
               onChange={(e) => {
@@ -362,7 +389,7 @@ export default function Amenities() {
                 transition-all duration-200
               "
             >
-              <option value="all">All Amenities</option>
+              <option value="all">All Status</option>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
             </select>
@@ -372,13 +399,13 @@ export default function Amenities() {
 
       {/* Mobile list */}
       <div className="md:hidden space-y-3">
-        {paged.map((a) => (
-          <AmenityCard
-            key={a._id}
-            amenity={a}
+        {paged.map((d) => (
+          <DiscountCard
+            key={d._id}
+            discount={d}
             onEdit={openEdit}
-            selected={selectedAmenities.includes(a._id)}
-            onSelect={toggleSelectAmenity}
+            selected={selectedDiscounts.includes(d._id)}
+            onSelect={toggleSelectDiscount}
           />
         ))}
         {paged.length === 0 && (
@@ -400,11 +427,11 @@ export default function Amenities() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
             </div>
-            <div className="text-gray-700 font-medium">No amenities found</div>
+            <div className="text-gray-700 font-medium">No discounts found</div>
             <div className="text-sm text-gray-500 mt-1">
               Try adjusting your search or filters
             </div>
@@ -433,7 +460,7 @@ export default function Amenities() {
               <input
                 type="checkbox"
                 checked={
-                  selectedAmenities.length === paged.length && paged.length > 0
+                  selectedDiscounts.length === paged.length && paged.length > 0
                 }
                 onChange={toggleSelectAll}
                 className="
@@ -443,7 +470,7 @@ export default function Amenities() {
               />
             )}
             <div className="text-sm font-semibold text-gray-900">
-              Resort Amenities ({total})
+              Discount Types ({total})
             </div>
           </div>
 
@@ -482,7 +509,7 @@ export default function Amenities() {
                     <input
                       type="checkbox"
                       checked={
-                        selectedAmenities.length === paged.length &&
+                        selectedDiscounts.length === paged.length &&
                         paged.length > 0
                       }
                       onChange={toggleSelectAll}
@@ -491,13 +518,22 @@ export default function Amenities() {
                   </th>
                 )}
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                  Amenity Name
+                  Name
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                  Rate
+                  Percentage
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                  Stock
+                  All Rooms
+                </th>
+                <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                  Max Room
+                </th>
+                <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                  Priority
+                </th>
+                <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                  Per Guest ID
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
                   Status
@@ -511,9 +547,9 @@ export default function Amenities() {
             </thead>
 
             <tbody>
-              {paged.map((a) => (
+              {paged.map((d) => (
                 <tr
-                  key={a._id}
+                  key={d._id}
                   className="
                     border-b border-gray-100 last:border-b-0
                     hover:bg-gray-50
@@ -524,8 +560,8 @@ export default function Amenities() {
                     <td className="px-6 py-4">
                       <input
                         type="checkbox"
-                        checked={selectedAmenities.includes(a._id)}
-                        onChange={() => toggleSelectAmenity(a._id)}
+                        checked={selectedDiscounts.includes(d._id)}
+                        onChange={() => toggleSelectDiscount(d._id)}
                         className="
                           h-5 w-5 rounded border-gray-300 
                           text-[#0c2bfc] focus:ring-[#0c2bfc]/20
@@ -535,18 +571,7 @@ export default function Amenities() {
                   )}
 
                   <td className="px-6 py-4">
-                    <div className="font-semibold text-gray-900">{a.name}</div>
-                  </td>
-
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-700 font-medium">
-                        {new Intl.NumberFormat("en-PH", {
-                          style: "currency",
-                          currency: "PHP",
-                        }).format(a.rate ?? 0)}
-                      </span>
-                    </div>
+                    <div className="font-semibold text-gray-900">{d.name}</div>
                   </td>
 
                   <td className="px-6 py-4">
@@ -554,25 +579,70 @@ export default function Amenities() {
                       <span
                         className="
                         px-3 py-1.5 rounded-full 
-                        bg-gray-100
-                        text-gray-700 text-xs font-medium
-                        border border-gray-200
+                        bg-[#0c2bfc]/10
+                        text-[#0c2bfc] text-xs font-medium
                       "
                       >
-                        {a.stock ?? 0} units
+                        {d.discountPercent}%
                       </span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4">
-                    <StatusPill value={a.status} />
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`
+                          px-3 py-1.5 rounded-full text-xs font-medium
+                          ${
+                            d.appliesToAllRooms
+                              ? "bg-[#00af00]/10 text-[#00af00]"
+                              : "bg-gray-100 text-gray-700"
+                          }
+                        `}
+                      >
+                        {d.appliesToAllRooms ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="text-gray-700 font-medium">
+                      {d.maxRoomCount || 0}
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="text-gray-700 font-medium capitalize">
+                      {d.discountPriority}
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`
+                          px-3 py-1.5 rounded-full text-xs font-medium
+                          ${
+                            d.isPerId
+                              ? "bg-[#0c2bfc]/10 text-[#0c2bfc]"
+                              : "bg-gray-100 text-gray-700"
+                          }
+                        `}
+                      >
+                        {d.isPerId ? "Yes" : "No"}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td className="px-6 py-4">
+                    <StatusPill value={d.status} />
                   </td>
 
                   {isAdmin && (
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => openEdit(a)}
+                        onClick={() => openEdit(d)}
                         className="
                           h-10 px-4 rounded-xl 
                           border border-gray-200 
@@ -595,7 +665,7 @@ export default function Amenities() {
               {paged.length === 0 && (
                 <tr>
                   <td
-                    colSpan={isAdmin ? 6 : 5}
+                    colSpan={isAdmin ? 9 : 8}
                     className="px-6 py-16 text-center"
                   >
                     <div className="text-gray-300 mb-3">
@@ -609,15 +679,15 @@ export default function Amenities() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
                     </div>
                     <div className="text-gray-700 font-medium text-lg">
-                      No amenities found
+                      No discounts found
                     </div>
                     <div className="text-sm text-gray-500 mt-2">
-                      Try adjusting your search criteria or add a new amenity
+                      Try adjusting your search criteria or add a new discount
                     </div>
                   </td>
                 </tr>
@@ -627,7 +697,7 @@ export default function Amenities() {
         </div>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination using the enhanced component */}
       <Pagination
         page={page}
         totalPages={totalPages}
@@ -639,12 +709,12 @@ export default function Amenities() {
 
       {/* Modal */}
       {modal.open && (
-        <AmenityModal
+        <DiscountTypeModal
           open={modal.open}
           mode={modal.mode}
-          amenity={modal.amenity}
+          data={modal.discount}
           onClose={closeModal}
-          onSave={saveAmenity}
+          onSave={saveDiscount}
         />
       )}
 
@@ -660,7 +730,7 @@ export default function Amenities() {
             size={60}
             variant="primary"
             showText={true}
-            text="Loading amenities..."
+            text="Loading discounts..."
           />
         </div>
       )}

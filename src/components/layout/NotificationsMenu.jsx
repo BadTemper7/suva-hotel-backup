@@ -94,7 +94,7 @@ export default function NotificationsMenu() {
 
   function goToAllNotifications() {
     setOpen(false);
-    navigate("/admin/notifications");
+    navigate("/notifications");
   }
 
   const handleNotificationClick = async (notification) => {
@@ -110,19 +110,19 @@ export default function NotificationsMenu() {
     // Navigate based on notification type
     switch (notification.type || notification.category) {
       case "reservation":
-        navigate("/admin/reservations");
+        navigate("/reservations");
         break;
       case "maintenance":
-        navigate("/admin/maintenance");
+        navigate("/maintenance");
         break;
       case "billing":
-        navigate("/admin/billing");
+        navigate("/billing");
         break;
       case "user":
-        navigate("/admin/users");
+        navigate("/users");
         break;
       default:
-        navigate("/admin/notifications");
+        navigate("/notifications");
     }
 
     setOpen(false);

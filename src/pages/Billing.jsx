@@ -16,13 +16,13 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
-import Loader from "../../components/layout/Loader.jsx";
-import { useBillingStore } from "../../stores/billingStore.js";
-import { getUserRole } from "../../app/auth.js";
-import ReceiptUploadModal from "../../components/modals/ReceiptUploadModal.jsx";
-import ViewReceiptsModal from "../../components/modals/ViewReceiptsModal.jsx";
-import EditBillingModal from "../../components/modals/EditBillingModal.jsx";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Loader from "../components/layout/Loader.jsx";
+import { useBillingStore } from "../stores/billingStore.js";
+import { getUserRole } from "../app/auth.js";
+import ReceiptUploadModal from "../components/modals/ReceiptUploadModal.jsx";
+import ViewReceiptsModal from "../components/modals/ViewReceiptsModal.jsx";
+import EditBillingModal from "../components/modals/EditBillingModal.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
 
 const STATUS_STYLES = {
   unpaid: "bg-red-100 text-red-700",
@@ -480,7 +480,7 @@ export default function Billing() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => navigate("/admin/payment-options")}
+              onClick={() => navigate("/payment-options")}
               className="
                 h-11 px-5 rounded-xl 
                 border border-gray-200 
@@ -500,7 +500,7 @@ export default function Billing() {
 
             <button
               type="button"
-              onClick={() => navigate("/admin/payment-types")}
+              onClick={() => navigate("/payment-types")}
               className="
                 h-11 px-5 rounded-xl 
                 border border-gray-200 
@@ -521,7 +521,7 @@ export default function Billing() {
             {isAdmin && (
               <button
                 type="button"
-                onClick={() => navigate("/admin/discount-types")}
+                onClick={() => navigate("/discount-types")}
                 className="
                   h-11 px-5 rounded-xl 
                   bg-[#0c2bfc] 

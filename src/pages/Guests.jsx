@@ -16,11 +16,11 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
-import Loader from "../../components/layout/Loader.jsx";
-import GuestModal from "../../components/modals/GuestModal.jsx";
-import { useGuestStore } from "../../stores/guestStore.js";
-import { getUserRole } from "../../app/auth.js";
-import Pagination from "../../components/ui/Pagination.jsx";
+import Loader from "../components/layout/Loader.jsx";
+import GuestModal from "../components/modals/GuestModal.jsx";
+import { useGuestStore } from "../stores/guestStore.js";
+import { getUserRole } from "../app/auth.js";
+import Pagination from "../components/ui/Pagination.jsx";
 
 function AccountBadge({ hasAccount }) {
   return (

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { FiPlus, FiTrash2, FiCheck, FiX } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
-import PaymentTypeModal from "../../components/modals/PaymentTypeModal.jsx";
-import DeleteModal from "../../components/modals/DeleteModal.jsx";
-import usePaymentTypeStore from "../../stores/paymentTypeStore.js";
+import PaymentTypeModal from "../components/modals/PaymentTypeModal.jsx";
+import DeleteModal from "../components/modals/DeleteModal.jsx";
+import usePaymentTypeStore from "../stores/paymentTypeStore.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",

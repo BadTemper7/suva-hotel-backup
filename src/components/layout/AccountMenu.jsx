@@ -21,13 +21,13 @@ export default function AccountMenu() {
 
   function goProfile() {
     setOpen(false); // ✅ close dropdown
-    navigate("/admin/profile");
+    navigate("/profile");
   }
 
   function logout() {
     setOpen(false); // ✅ close dropdown
     doLogout();
-    navigate("/admin/login");
+    navigate("/");
   }
 
   return (

@@ -61,33 +61,33 @@ export default function Breadcrumbs() {
 
   // Always start with Dashboard
   if (actualSegments.length > 0 && actualSegments[0] !== "dashboard") {
-    crumbs.push({ to: "/admin/dashboard", label: "Dashboard" });
+    crumbs.push({ to: "/dashboard", label: "Dashboard" });
   }
 
   // Handle reservation detail pages first
   if (isRoomReservation) {
     const reservationId = actualSegments[1];
     crumbs.push(
-      { to: "/admin/reservations", label: "Reservations" },
+      { to: "/reservations", label: "Reservations" },
       {
-        to: `/admin/reservations/${reservationId}`,
+        to: `/reservations/${reservationId}`,
         label: `Reservation #${reservationId.slice(-6)}`,
       },
       {
-        to: `/admin/reservations/${reservationId}/rooms`,
+        to: `/reservations/${reservationId}/rooms`,
         label: "Add Rooms",
       },
     );
   } else if (isAmenityReservation) {
     const reservationId = actualSegments[1];
     crumbs.push(
-      { to: "/admin/reservations", label: "Reservations" },
+      { to: "/reservations", label: "Reservations" },
       {
-        to: `/admin/reservations/${reservationId}`,
+        to: `/reservations/${reservationId}`,
         label: `Reservation #${reservationId.slice(-6)}`,
       },
       {
-        to: `/admin/reservations/${reservationId}/amenities`,
+        to: `/reservations/${reservationId}/amenities`,
         label: "Manage Amenities",
       },
     );
@@ -98,9 +98,9 @@ export default function Breadcrumbs() {
     const child = actualSegments[0];
 
     crumbs.push(
-      { to: `/admin/${parent}`, label: labelMap[parent] || "Rooms" },
+      { to: `/${parent}`, label: labelMap[parent] || "Rooms" },
       {
-        to: `/admin/${child}`,
+        to: `/${child}`,
         label:
           labelMap[child] ||
           child.charAt(0).toUpperCase() + child.slice(1).replace(/-/g, " "),
@@ -113,9 +113,9 @@ export default function Breadcrumbs() {
     const child = actualSegments[0];
 
     crumbs.push(
-      { to: `/admin/${parent}`, label: labelMap[parent] || "Reservations" },
+      { to: `/${parent}`, label: labelMap[parent] || "Reservations" },
       {
-        to: `/admin/${child}`,
+        to: `/${child}`,
         label:
           labelMap[child] ||
           child.charAt(0).toUpperCase() + child.slice(1).replace(/-/g, " "),
@@ -128,9 +128,9 @@ export default function Breadcrumbs() {
     const child = actualSegments[0];
 
     crumbs.push(
-      { to: `/admin/${parent}`, label: labelMap[parent] || "Billing" },
+      { to: `/${parent}`, label: labelMap[parent] || "Billing" },
       {
-        to: `/admin/${child}`,
+        to: `/${child}`,
         label:
           labelMap[child] ||
           child.charAt(0).toUpperCase() + child.slice(1).replace(/-/g, " "),
@@ -140,7 +140,7 @@ export default function Breadcrumbs() {
   // Handle top-level pages
   else if (actualSegments.length > 0) {
     actualSegments.forEach((seg, i) => {
-      const to = "/admin/" + actualSegments.slice(0, i + 1).join("/");
+      const to = "/" + actualSegments.slice(0, i + 1).join("/");
 
       // Skip if it's dashboard (already handled)
       if (seg === "dashboard") return;
@@ -156,7 +156,7 @@ export default function Breadcrumbs() {
 
   // If we're on dashboard and no crumbs were added, add Dashboard
   if (crumbs.length === 0 || actualSegments.length === 0) {
-    crumbs = [{ to: "/admin/dashboard", label: "Dashboard" }];
+    crumbs = [{ to: "/dashboard", label: "Dashboard" }];
   }
 
   return (

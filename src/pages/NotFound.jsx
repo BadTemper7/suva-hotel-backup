@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LogoVariations } from "../../components/layout/Logo";
+import { LogoVariations } from "../components/layout/Logo";
 
 export default function NotFound() {
   return (
@@ -73,7 +73,7 @@ export default function NotFound() {
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
             <Link
-              to="/admin/login"
+              to="/"
               className="px-8 py-3 bg-[#0c2bfc] text-white rounded-full font-semibold hover:bg-[#0a24d6] transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 group"
             >
               <svg

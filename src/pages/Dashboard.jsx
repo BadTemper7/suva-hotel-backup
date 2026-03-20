@@ -1,4 +1,4 @@
-// src/pages/admin/Dashboard.jsx
+// src/pages/Dashboard.jsx
 import { useMemo, useState, useEffect } from "react";
 import {
   FiCalendar,
@@ -19,8 +19,8 @@ import {
   FiActivity,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
-import { useBillingStore } from "../../stores/billingStore";
-import Loader from "../../components/layout/Loader";
+import { useBillingStore } from "../stores/billingStore";
+import Loader from "../components/layout/Loader";
 
 function StatCard({
   title,

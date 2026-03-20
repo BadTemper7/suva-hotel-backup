@@ -12,9 +12,9 @@ import {
   FiTrash2,
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
-import Loader from "../../components/layout/Loader.jsx";
-import { useSettingsStore } from "../../stores/settingsStore.js";
-import { getUserRole } from "../../app/auth.js";
+import Loader from "../components/layout/Loader.jsx";
+import { useSettingsStore } from "../stores/settingsStore.js";
+import { getUserRole } from "../app/auth.js";
 
 export default function Settings() {
   const {

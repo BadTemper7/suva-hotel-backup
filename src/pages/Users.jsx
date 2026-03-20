@@ -1,13 +1,13 @@
-// src/pages/admin/Users.jsx
+// src/pages/Users.jsx
 import { useEffect, useMemo, useState } from "react";
 import { FiEdit2, FiPlus, FiSearch, FiTrash2, FiFilter } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
-import Loader from "../../components/layout/Loader.jsx";
-import UserModal from "../../components/modals/UserModal.jsx";
-import Pagination from "../../components/ui/Pagination.jsx";
-import { useUserStore } from "../../stores/userStore.js";
-import { getUserRole } from "../../app/auth.js";
+import Loader from "../components/layout/Loader.jsx";
+import UserModal from "../components/modals/UserModal.jsx";
+import Pagination from "../components/ui/Pagination.jsx";
+import { useUserStore } from "../stores/userStore.js";
+import { getUserRole } from "../app/auth.js";
 
 const ROLES = ["admin", "receptionist"];
 
