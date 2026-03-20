@@ -57,24 +57,73 @@ export const useReceiptStore = create((set) => ({
     }
   },
 
-  // ✅ Update receipt status (pending | confirmed | rejected)
-  updateReceiptStatus: async (receiptId, status, reason = "") => {
+  updateReceiptStatus: async (
+    receiptId,
+    status,
+    reservationId,
+    reason = "",
+  ) => {
     set({ loading: true, error: null });
     try {
       const res = await fetch(`${API}/receipts/${receiptId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, reason }),
+        body: JSON.stringify({ status, reservationId, reason }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || "Failed to update receipt status");
       }
+
       const billingId = data.receipt.billingId._id;
       await fetch(`${API}/billings/calculate/${billingId}`, {
         method: "PUT",
       });
+
+      // IF STATUS IS CONFIRMED, UPDATE RESERVATION STATUS
+      if (status === "confirmed" && reservationId) {
+        try {
+          // Call the reservation status update
+          const reservationRes = await fetch(
+            `${API}/reservations/${reservationId}/status`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "confirmed" }),
+            },
+          );
+
+          const reservationData = await reservationRes.json();
+
+          if (reservationRes.ok) {
+            // Update reservation in local state if you have it in this store
+            const reservation =
+              reservationData.reservation ||
+              reservationData.data ||
+              reservationData;
+
+            // If you have a reservation store, you might want to update it
+            // You can also store reservation updates in receipt store state
+            set((state) => ({
+              ...state,
+              lastUpdatedReservation: reservation,
+            }));
+
+            console.log(
+              `✅ Reservation ${reservationId} status updated to confirmed`,
+            );
+          } else {
+            console.error(
+              "Failed to update reservation status:",
+              reservationData,
+            );
+          }
+        } catch (reservationErr) {
+          console.error("Error updating reservation status:", reservationErr);
+          // Don't throw error here - receipt is already updated, just log the error
+        }
+      }
 
       // Update receipt in local state with the returned receipt
       set((state) => ({
@@ -84,7 +133,10 @@ export const useReceiptStore = create((set) => ({
         loading: false,
       }));
 
-      return data;
+      return {
+        ...data,
+        reservationUpdated: status === "confirmed" && !!reservationId,
+      };
     } catch (err) {
       set({ error: err.message, loading: false });
       throw err;

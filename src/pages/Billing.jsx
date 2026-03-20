@@ -1035,6 +1035,7 @@ export default function Billing() {
           open={viewReceiptsModal.open}
           onClose={closeViewReceiptsModal}
           billing={viewReceiptsModal.billing}
+          
         />
       )}
 
