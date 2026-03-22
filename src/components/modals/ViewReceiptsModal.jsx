@@ -17,7 +17,6 @@ import {
   FiCopy,
   FiRefreshCw,
   FiCalendar,
-  FiDollarSign,
   FiUser,
   FiCreditCard,
 } from "react-icons/fi";
@@ -70,6 +69,7 @@ function ReceiptActionsMenu({
   onStatusUpdate,
   onCopyAmount,
   onRefreshBilling,
+  isAdmin,
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -162,6 +162,8 @@ function BulkActions({
   totalAmount,
   onBulkConfirm,
   onBulkReject,
+  onBulkDelete,
+  isAdmin,
 }) {
   return (
     <div className="flex items-center justify-between w-full">
@@ -191,6 +193,14 @@ function BulkActions({
         >
           <FiXCircle size={16} /> Reject All
         </button>
+        {isAdmin && (
+          <button
+            onClick={onBulkDelete}
+            className="h-10 px-5 rounded-xl bg-[#0c2bfc] hover:bg-[#0a24d6] text-white text-sm font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <FiTrash2 size={16} /> Delete Selected
+          </button>
+        )}
       </div>
     </div>
   );
@@ -308,6 +318,12 @@ function ViewReceiptsModal({ billing, open, onClose }) {
   });
   const [refreshingBilling, setRefreshingBilling] = useState(false);
 
+  // Get user role from localStorage
+  const user = JSON.parse(localStorage.getItem("suva_admin_user") || "{}");
+  const userRole = user.role;
+  const isAdmin = userRole === "admin" || userRole === "superadmin";
+  const isReceptionist = userRole === "receptionist";
+
   useEffect(() => {
     if (open && billing?._id) {
       fetchReceiptsByBilling(billing._id).catch((err) => {
@@ -347,7 +363,7 @@ function ViewReceiptsModal({ billing, open, onClose }) {
       await updateReceiptStatus(
         receiptId,
         newStatus,
-        billing.reservationId._id,
+        billing.reservationId?._id,
         reason,
       );
       toast.success(`Receipt ${newStatus} successfully`);
@@ -420,7 +436,7 @@ function ViewReceiptsModal({ billing, open, onClose }) {
 
   return (
     <>
-      {/* Overlay - Using same structure as DiscountTypeModal */}
+      {/* Overlay */}
       <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4 backdrop-blur-sm">
         <div
           className="
@@ -430,7 +446,7 @@ function ViewReceiptsModal({ billing, open, onClose }) {
           shadow-2xl border border-gray-200
           overflow-hidden
         "
-          onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div
@@ -532,11 +548,10 @@ function ViewReceiptsModal({ billing, open, onClose }) {
             </button>
           </div>
 
-          {/* Bulk Actions Bar */}
+          {/* Bulk Actions Bar - Only show delete button for admin */}
           {selectedReceipts.length > 0 && (
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
               <div className="flex justify-between items-center">
-                {/* BulkActions component content directly here */}
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-[#0c2bfc] text-white flex items-center justify-center shadow-sm">
                     <FiCheck size={18} />
@@ -578,20 +593,22 @@ function ViewReceiptsModal({ billing, open, onClose }) {
                     >
                       <FiXCircle size={16} /> Reject All
                     </button>
+                    {/* Delete Selected Button - Only show for admin */}
+                    {isAdmin && (
+                      <button
+                        onClick={() =>
+                          setDeleteModal({
+                            open: true,
+                            isBulk: true,
+                            receipt: null,
+                          })
+                        }
+                        className="h-10 px-5 rounded-xl bg-[#0c2bfc] hover:bg-[#0a24d6] text-white text-sm font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
+                      >
+                        <FiTrash2 size={16} /> Delete Selected
+                      </button>
+                    )}
                   </div>
-
-                  <button
-                    onClick={() =>
-                      setDeleteModal({
-                        open: true,
-                        isBulk: true,
-                        receipt: null,
-                      })
-                    }
-                    className="h-10 px-5 rounded-xl bg-[#0c2bfc] hover:bg-[#0a24d6] text-white text-sm font-semibold inline-flex items-center gap-2 transition-all duration-200 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-                  >
-                    <FiTrash2 size={16} /> Delete Selected
-                  </button>
                 </div>
               </div>
             </div>
@@ -687,21 +704,25 @@ function ViewReceiptsModal({ billing, open, onClose }) {
                               }
                               onCopyAmount={copyAmountToClipboard}
                               onRefreshBilling={refreshBillingData}
+                              isAdmin={isAdmin}
                             />
-                            <button
-                              onClick={() =>
-                                setDeleteModal({
-                                  open: true,
-                                  isBulk: false,
-                                  receipt,
-                                })
-                              }
-                              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors duration-200 border border-gray-200 hover:border-red-200"
-                              title="Delete receipt"
-                              aria-label="Delete receipt"
-                            >
-                              <FiTrash2 size={18} />
-                            </button>
+                            {/* Delete Button - Only show for admin */}
+                            {isAdmin && (
+                              <button
+                                onClick={() =>
+                                  setDeleteModal({
+                                    open: true,
+                                    isBulk: false,
+                                    receipt,
+                                  })
+                                }
+                                className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors duration-200 border border-gray-200 hover:border-red-200"
+                                title="Delete receipt"
+                                aria-label="Delete receipt"
+                              >
+                                <FiTrash2 size={18} />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -856,7 +877,7 @@ function ViewReceiptsModal({ billing, open, onClose }) {
         </div>
       </div>
 
-      {/* Delete Modal */}
+      {/* Delete Modal - Only show for admin, but we'll keep it for bulk operations */}
       {deleteModal.open && (
         <DeleteModal
           entity={deleteModal.isBulk ? null : deleteModal.receipt}

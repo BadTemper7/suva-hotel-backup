@@ -1,31 +1,81 @@
-// stores/receiptStore.js
 import { create } from "zustand";
 
 const API =
   import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
 
-export const useReceiptStore = create((set) => ({
+export const useReceiptStore = create((set, get) => ({
   receipts: [],
   loading: false,
   error: null,
+  lastUpdatedReservation: null,
 
-  // Create a new receipt
-  createReceipt: async (receiptData, file) => {
+  // Helper to get auth token
+  getAuthHeaders: () => {
+    const token =
+      localStorage.getItem("suva_guest_token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("suva_admin_token");
+
+    return {
+      Authorization: token ? `Bearer ${token}` : "",
+    };
+  },
+
+  // Helper to recalculate billing
+  recalculateBilling: async (billingId) => {
+    if (!billingId) return;
+    try {
+      await fetch(`${API}/billings/calculate/${billingId}`, {
+        method: "PUT",
+      });
+      console.log(`✅ Recalculated billing ${billingId}`);
+    } catch (error) {
+      console.error(`Failed to recalculate billing ${billingId}:`, error);
+    }
+  },
+
+  // Helper to recalculate multiple billings
+  recalculateMultipleBillings: async (billingIds) => {
+    const uniqueBillingIds = [...new Set(billingIds.filter((id) => id))];
+    if (uniqueBillingIds.length === 0) return;
+
+    console.log(
+      `Recalculating ${uniqueBillingIds.length} affected billings...`,
+    );
+    const promises = uniqueBillingIds.map((id) => get().recalculateBilling(id));
+    await Promise.all(promises);
+  },
+
+  // Create a new receipt with reference number support
+  createReceipt: async (receiptData, file, referenceNumber = null) => {
     set({ loading: true, error: null });
     try {
       const formData = new FormData();
 
       // Append all receipt data
-      Object.keys(receiptData).forEach((key) => {
-        if (key === "paymentType" && typeof receiptData[key] === "object") {
-          // If paymentType is an object, use its _id
-          formData.append(key, receiptData[key]._id || receiptData[key]);
-        } else {
-          formData.append(key, receiptData[key]);
-        }
-      });
+      formData.append("billingId", receiptData.billingId);
+      formData.append("paymentType", receiptData.paymentType);
+      formData.append("amountPaid", receiptData.amountPaid);
+      formData.append("amountReceived", receiptData.amountReceived);
+      formData.append("status", receiptData.status || "confirmed");
 
-      // Append file if provided
+      if (receiptData.notes) {
+        formData.append("notes", receiptData.notes);
+      }
+
+      if (referenceNumber && referenceNumber.trim()) {
+        formData.append("referenceNumber", referenceNumber.trim());
+      }
+
+      const user = JSON.parse(localStorage.getItem("suva_admin_user") || "{}");
+      const userRole = user.role;
+      const isAdmin = userRole === "admin" || userRole === "superadmin";
+      const isReceptionist = userRole === "receptionist";
+
+      if (isAdmin || isReceptionist) {
+        formData.append("isAdminInitiated", "true");
+      }
+
       if (file) {
         formData.append("receiptImage", file);
       }
@@ -41,176 +91,44 @@ export const useReceiptStore = create((set) => ({
       }
 
       const billingId = data.receipt.billingId;
-      await fetch(`${API}/billings/calculate/${billingId}`, {
-        method: "PUT",
-      });
+      if (billingId) {
+        await get().recalculateBilling(billingId);
+      }
 
       set((state) => ({
-        receipts: [...state.receipts, data.receipt],
+        receipts: [data.receipt, ...state.receipts],
         loading: false,
       }));
 
       return data;
     } catch (err) {
+      console.error("Create receipt error:", err);
       set({ error: err.message, loading: false });
       throw err;
     }
   },
 
-  updateReceiptStatus: async (
-    receiptId,
-    status,
-    reservationId,
-    reason = "",
-  ) => {
-    set({ loading: true, error: null });
-    try {
-      const res = await fetch(`${API}/receipts/${receiptId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, reservationId, reason }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to update receipt status");
-      }
-
-      const billingId = data.receipt.billingId._id;
-      await fetch(`${API}/billings/calculate/${billingId}`, {
-        method: "PUT",
-      });
-
-      // IF STATUS IS CONFIRMED, UPDATE RESERVATION STATUS
-      if (status === "confirmed" && reservationId) {
-        try {
-          // Call the reservation status update
-          const reservationRes = await fetch(
-            `${API}/reservations/${reservationId}/status`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "confirmed" }),
-            },
-          );
-
-          const reservationData = await reservationRes.json();
-
-          if (reservationRes.ok) {
-            // Update reservation in local state if you have it in this store
-            const reservation =
-              reservationData.reservation ||
-              reservationData.data ||
-              reservationData;
-
-            // If you have a reservation store, you might want to update it
-            // You can also store reservation updates in receipt store state
-            set((state) => ({
-              ...state,
-              lastUpdatedReservation: reservation,
-            }));
-
-            console.log(
-              `✅ Reservation ${reservationId} status updated to confirmed`,
-            );
-          } else {
-            console.error(
-              "Failed to update reservation status:",
-              reservationData,
-            );
-          }
-        } catch (reservationErr) {
-          console.error("Error updating reservation status:", reservationErr);
-          // Don't throw error here - receipt is already updated, just log the error
-        }
-      }
-
-      // Update receipt in local state with the returned receipt
-      set((state) => ({
-        receipts: state.receipts.map((receipt) =>
-          receipt._id === receiptId ? data.receipt : receipt,
-        ),
-        loading: false,
-      }));
-
-      return {
-        ...data,
-        reservationUpdated: status === "confirmed" && !!reservationId,
-      };
-    } catch (err) {
-      set({ error: err.message, loading: false });
-      throw err;
-    }
-  },
-
-  // Confirm a receipt
-  confirmReceipt: async (receiptId) => {
-    set({ loading: true, error: null });
-    try {
-      const res = await fetch(`${API}/receipts/${receiptId}/confirm`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to confirm receipt");
-      }
-
-      set((state) => ({
-        receipts: state.receipts.map((receipt) =>
-          receipt._id === receiptId ? data.receipt : receipt,
-        ),
-        loading: false,
-      }));
-
-      return data;
-    } catch (err) {
-      set({ error: err.message, loading: false });
-      throw err;
-    }
-  },
-
-  // Reject a receipt
-  rejectReceipt: async (receiptId, reason) => {
-    set({ loading: true, error: null });
-    try {
-      const res = await fetch(`${API}/receipts/${receiptId}/reject`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reason }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to reject receipt");
-      }
-
-      set((state) => ({
-        receipts: state.receipts.map((receipt) =>
-          receipt._id === receiptId ? data.receipt : receipt,
-        ),
-        loading: false,
-      }));
-
-      return data;
-    } catch (err) {
-      set({ error: err.message, loading: false });
-      throw err;
-    }
-  },
-
-  // Delete a receipt
+  // Delete single receipt
   deleteReceipt: async (receiptId) => {
     set({ loading: true, error: null });
     try {
+      const headers = get().getAuthHeaders();
+      const receiptToDelete = get().receipts.find((r) => r._id === receiptId);
+      const billingId =
+        receiptToDelete?.billingId?._id || receiptToDelete?.billingId;
+
       const res = await fetch(`${API}/receipts/${receiptId}`, {
         method: "DELETE",
+        headers,
       });
 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data?.message || "Failed to delete receipt");
+      }
+
+      if (billingId) {
+        await get().recalculateBilling(billingId);
       }
 
       set((state) => ({
@@ -233,21 +151,144 @@ export const useReceiptStore = create((set) => ({
 
     set({ loading: true, error: null });
     try {
+      const headers = get().getAuthHeaders();
+
+      const receiptsToDelete = get().receipts.filter((r) =>
+        receiptIds.includes(r._id),
+      );
+      const uniqueBillingIds = receiptsToDelete.map(
+        (r) => r.billingId?._id || r.billingId,
+      );
+
       const res = await fetch(`${API}/receipts/bulk`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
         body: JSON.stringify({ receiptIds }),
       });
 
       const data = await res.json();
-
       if (!res.ok) {
         throw new Error(data?.message || "Failed to delete receipts");
       }
 
-      // Remove deleted receipts from state
+      await get().recalculateMultipleBillings(uniqueBillingIds);
+
       set((state) => ({
         receipts: state.receipts.filter((r) => !receiptIds.includes(r._id)),
+        loading: false,
+      }));
+
+      return data;
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  // Update receipt status
+  updateReceiptStatus: async (
+    receiptId,
+    status,
+    reservationId,
+    reason = "",
+  ) => {
+    set({ loading: true, error: null });
+    try {
+      const headers = get().getAuthHeaders();
+      const res = await fetch(`${API}/receipts/${receiptId}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        body: JSON.stringify({ status, reservationId, reason }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to update receipt status");
+      }
+
+      const billingId = data.receipt.billingId?._id || data.receipt.billingId;
+      if (billingId) {
+        await get().recalculateBilling(billingId);
+      }
+
+      if (status === "confirmed" && reservationId) {
+        try {
+          const reservationRes = await fetch(
+            `${API}/reservations/${reservationId}/status`,
+            {
+              method: "PATCH",
+              headers: {
+                "Content-Type": "application/json",
+                ...headers,
+              },
+              body: JSON.stringify({ status: "confirmed" }),
+            },
+          );
+
+          const reservationData = await reservationRes.json();
+          if (reservationRes.ok) {
+            const reservation =
+              reservationData.reservation ||
+              reservationData.data ||
+              reservationData;
+            set({ lastUpdatedReservation: reservation });
+          }
+        } catch (reservationErr) {
+          console.error("Error updating reservation status:", reservationErr);
+        }
+      }
+
+      set((state) => ({
+        receipts: state.receipts.map((receipt) =>
+          receipt._id === receiptId ? data.receipt : receipt,
+        ),
+        loading: false,
+      }));
+
+      return {
+        ...data,
+        reservationUpdated: status === "confirmed" && !!reservationId,
+      };
+    } catch (err) {
+      set({ error: err.message, loading: false });
+      throw err;
+    }
+  },
+
+  // Confirm single receipt
+  confirmReceipt: async (receiptId, reservationId = null) => {
+    set({ loading: true, error: null });
+    try {
+      const headers = get().getAuthHeaders();
+      const res = await fetch(`${API}/receipts/${receiptId}/confirm`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        body: JSON.stringify({ reservationId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to confirm receipt");
+      }
+
+      const billingId = data.receipt.billingId?._id || data.receipt.billingId;
+      if (billingId) {
+        await get().recalculateBilling(billingId);
+      }
+
+      set((state) => ({
+        receipts: state.receipts.map((receipt) =>
+          receipt._id === receiptId ? data.receipt : receipt,
+        ),
         loading: false,
       }));
 
@@ -266,9 +307,20 @@ export const useReceiptStore = create((set) => ({
 
     set({ loading: true, error: null });
     try {
+      const headers = get().getAuthHeaders();
+      const receiptsToConfirm = get().receipts.filter((r) =>
+        receiptIds.includes(r._id),
+      );
+      const uniqueBillingIds = receiptsToConfirm.map(
+        (r) => r.billingId?._id || r.billingId,
+      );
+
       const res = await fetch(`${API}/receipts/bulk/confirm`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
         body: JSON.stringify({ receiptIds }),
       });
 
@@ -277,7 +329,8 @@ export const useReceiptStore = create((set) => ({
         throw new Error(data?.message || "Failed to confirm receipts");
       }
 
-      // Update the receipts in local state
+      await get().recalculateMultipleBillings(uniqueBillingIds);
+
       set((state) => ({
         receipts: state.receipts.map((receipt) =>
           receiptIds.includes(receipt._id)
@@ -302,9 +355,20 @@ export const useReceiptStore = create((set) => ({
 
     set({ loading: true, error: null });
     try {
+      const headers = get().getAuthHeaders();
+      const receiptsToReject = get().receipts.filter((r) =>
+        receiptIds.includes(r._id),
+      );
+      const uniqueBillingIds = receiptsToReject.map(
+        (r) => r.billingId?._id || r.billingId,
+      );
+
       const res = await fetch(`${API}/receipts/bulk/reject`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
         body: JSON.stringify({ receiptIds, reason }),
       });
 
@@ -313,7 +377,8 @@ export const useReceiptStore = create((set) => ({
         throw new Error(data?.message || "Failed to reject receipts");
       }
 
-      // Update the receipts in local state
+      await get().recalculateMultipleBillings(uniqueBillingIds);
+
       set((state) => ({
         receipts: state.receipts.map((receipt) =>
           receiptIds.includes(receipt._id)
@@ -336,7 +401,6 @@ export const useReceiptStore = create((set) => ({
 
   // Fetch receipts for a billing
   fetchReceiptsByBilling: async (billingId) => {
-    // Validate that billingId is a valid ID, not "bulk"
     if (billingId === "bulk" || !billingId) {
       throw new Error("Invalid billing ID");
     }
