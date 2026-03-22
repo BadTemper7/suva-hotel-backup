@@ -1123,7 +1123,7 @@ export default function ReservationProcess() {
       <Helmet>
         <title>Create Reservation - Resort Admin</title>
       </Helmet>
-      <div className="h-full min-h-0 flex flex-col gap-6 relative">
+      <div className="min-h-full flex flex-col gap-6 relative">
         <Toaster
           position="top-center"
           reverseOrder={false}

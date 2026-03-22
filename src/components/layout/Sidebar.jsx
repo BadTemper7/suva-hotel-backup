@@ -25,8 +25,8 @@ const NAV = [
   { to: "/users", label: "Users", icon: FiShield },
   { to: "/billing", label: "Billing", icon: FiCreditCard },
   { to: "/reports", label: "Reports", icon: FiBarChart2 },
-  { to: "/maintenance", label: "Maintenance", icon: FiTool },
-  { to: "/lost-found", label: "Lost & Found", icon: FiSearch },
+  // { to: "/maintenance", label: "Maintenance", icon: FiTool },
+  // { to: "/lost-found", label: "Lost & Found", icon: FiSearch },
   { to: "/settings", label: "Settings", icon: FiSettings },
 ];
 
@@ -84,8 +84,14 @@ export default function Sidebar({ collapsed, setCollapsed }) {
         )}
       </div>
 
-      {/* Nav */}
-      <nav className="p-4 space-y-2 flex-1 overflow-visible relative">
+      {/* Nav - Using custom scrollbar classes from index.css */}
+      <nav
+        className={[
+          "p-4 space-y-2 flex-1 overflow-y-auto overflow-x-visible relative",
+          "sidebar-scroll", // Custom scrollbar styling
+          "sidebar-nav", // For responsive height adjustments
+        ].join(" ")}
+      >
         {NAV.map((item) => {
           const Icon = item.icon;
           const isHovered = hoveredItem === item.label;
@@ -167,7 +173,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       {/* Bottom: Collapse/expand button */}
       <div
         className={[
-          "p-4 border-t border-gray-200 relative",
+          "p-4 border-t border-gray-200 relative shrink-0",
           collapsed ? "flex justify-center" : "flex justify-end",
         ].join(" ")}
       >

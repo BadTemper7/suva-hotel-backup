@@ -222,7 +222,7 @@ export default function PaymentOptions() {
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-6">
+    <div className="min-h-full flex flex-col gap-6">
       <Toaster
         position="top-center"
         reverseOrder={false}

@@ -1,11 +1,72 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout as doLogout } from "../../app/auth.js";
+import { logout as doLogout, getUser, getUserRole } from "../../app/auth.js";
 
 export default function AccountMenu() {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const navigate = useNavigate();
+
+  // Get user data from auth
+  const user = getUser();
+  const userRole = getUserRole();
+
+  // Get initials from user's name
+  const getUserInitials = () => {
+    if (!user) return "AD";
+    const firstName = user.firstName || "";
+    const lastName = user.lastName || "";
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    }
+    if (firstName) return firstName.charAt(0).toUpperCase();
+    if (lastName) return lastName.charAt(0).toUpperCase();
+    return "U";
+  };
+
+  // Get user's full name
+  const getUserName = () => {
+    if (!user) return "Admin User";
+    return (
+      `${user.firstName || ""} ${user.lastName || ""}`.trim() || "Admin User"
+    );
+  };
+
+  // Get user's email
+  const getUserEmail = () => {
+    if (!user) return "";
+    return user.email || "";
+  };
+
+  // Get role display name
+  const getRoleDisplayName = () => {
+    switch (userRole) {
+      case "admin":
+        return "Administrator";
+      case "superadmin":
+        return "Super Administrator";
+      case "manager":
+        return "Resort Manager";
+      case "staff":
+        return "Front Desk Staff";
+      default:
+        return userRole || "Staff";
+    }
+  };
+
+  // Get role color
+  const getRoleColor = () => {
+    switch (userRole) {
+      case "superadmin":
+        return "text-purple-600 bg-purple-50";
+      case "admin":
+        return "text-[#0c2bfc] bg-[#0c2bfc]/10";
+      case "manager":
+        return "text-[#00af00] bg-[#00af00]/10";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
+  };
 
   useEffect(() => {
     function onPointerDown(e) {
@@ -29,6 +90,12 @@ export default function AccountMenu() {
     doLogout();
     navigate("/");
   }
+
+  const initials = getUserInitials();
+  const fullName = getUserName();
+  const email = getUserEmail();
+  const roleDisplay = getRoleDisplayName();
+  const roleColorClass = getRoleColor();
 
   return (
     <div className="relative" ref={ref}>
@@ -58,13 +125,13 @@ export default function AccountMenu() {
           shadow-sm
         "
         >
-          AD
+          {initials}
         </div>
         <div className="hidden sm:block text-left">
           <div className="text-sm leading-4 font-medium text-gray-800">
-            Admin
+            {fullName}
           </div>
-          <div className="text-xs text-gray-500 leading-3">Resort Manager</div>
+          <div className="text-xs text-gray-500 leading-3">{roleDisplay}</div>
         </div>
         <span className="text-gray-400 text-lg">▾</span>
       </button>
@@ -95,13 +162,20 @@ export default function AccountMenu() {
                 shadow-md
               "
               >
-                AD
+                {initials}
               </div>
-              <div>
-                <div className="text-sm font-semibold text-gray-800">
-                  Admin User
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-gray-800 truncate">
+                  {fullName}
                 </div>
-                <div className="text-xs text-gray-500">Resort Manager</div>
+                <div className="text-xs text-gray-500 truncate">{email}</div>
+                <div className="mt-1">
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleColorClass}`}
+                  >
+                    {roleDisplay}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

@@ -6,6 +6,7 @@ import { Helmet } from "react-helmet";
 import RoomTypeModal from "../components/modals/RoomTypeModal.jsx";
 import { useRoomTypeStore } from "../stores/roomTypeStore.js";
 import Loader from "../components/layout/Loader.jsx";
+import { getUserRole } from "../app/auth.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
@@ -27,22 +28,31 @@ function StatusPill({ value }) {
   );
 }
 
-function RoomTypeCard({ type, onEdit, onDelete }) {
+function RoomTypeCard({
+  type,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}) {
   return (
     <div
-      className="
-        group relative cursor-pointer overflow-hidden
+      className={`
+        group relative overflow-hidden
         rounded-xl border border-gray-200
         bg-white p-5 text-left
-        shadow-sm hover:shadow-md transition-all duration-300
-        hover:-translate-y-0.5 hover:border-gray-300
-        focus:outline-none focus:ring-2 focus:ring-[#0c2bfc]/20
-      "
-      role="button"
-      tabIndex={0}
-      onClick={() => onEdit(type)}
-      onKeyDown={(e) => e.key === "Enter" && onEdit(type)}
-      title="Click to edit"
+        shadow-sm transition-all duration-300
+        ${
+          canEdit
+            ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0c2bfc]/20"
+            : "cursor-default"
+        }
+      `}
+      role={canEdit ? "button" : "article"}
+      tabIndex={canEdit ? 0 : undefined}
+      onClick={() => canEdit && onEdit(type)}
+      onKeyDown={(e) => canEdit && e.key === "Enter" && onEdit(type)}
+      title={canEdit ? "Click to edit" : "View only"}
     >
       {/* Accent bar */}
       <div
@@ -51,35 +61,35 @@ function RoomTypeCard({ type, onEdit, onDelete }) {
         }`}
       />
 
-      {/* Delete button */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(type);
-        }}
-        className="
-          absolute right-3 top-3 z-10
-          rounded-xl p-2
-          text-[#0c2bfc]
-          opacity-0 group-hover:opacity-100
-          bg-white
-          hover:bg-gray-50
-          hover:text-[#0a24d6] hover:shadow-md
-          focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#0c2bfc]/20
-          transition-all duration-200
-        "
-        title="Delete room type"
-      >
-        <FiTrash2 size={16} />
-      </button>
+      {/* Delete button - only show if user can delete */}
+      {canDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(type);
+          }}
+          className="
+            absolute right-3 top-3 z-10
+            rounded-xl p-2
+            text-[#0c2bfc]
+            opacity-0 group-hover:opacity-100
+            bg-white
+            hover:bg-gray-50
+            hover:text-[#0a24d6] hover:shadow-md
+            focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-[#0c2bfc]/20
+            transition-all duration-200
+          "
+          title="Delete room type"
+        >
+          <FiTrash2 size={16} />
+        </button>
+      )}
 
       {/* Content */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-semibold text-gray-900 group-hover:text-[#0c2bfc] transition">
-            {type.name}
-          </h2>
+          <h2 className="text-base font-semibold text-gray-900">{type.name}</h2>
 
           <div className="mt-3">
             <StatusPill value={type.status} />
@@ -89,8 +99,35 @@ function RoomTypeCard({ type, onEdit, onDelete }) {
 
       <div className="mt-5 pt-4 border-t border-gray-200">
         <div className="text-xs text-gray-500 flex items-center gap-1">
-          <FiEdit2 className="w-3 h-3" />
-          Click card to edit room type
+          {canEdit ? (
+            <>
+              <FiEdit2 className="w-3 h-3" />
+              Click card to edit room type
+            </>
+          ) : (
+            <>
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              View only - Cannot edit
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -120,6 +157,15 @@ export default function RoomTypes() {
     roomType: null,
   });
 
+  // Get user role
+  const userRole = getUserRole();
+
+  // Check permissions - only admin and superadmin can edit and delete
+  // Everyone can add (including receptionists)
+  const canEdit = userRole === "admin" || userRole === "superadmin";
+  const canDelete = userRole === "admin" || userRole === "superadmin";
+  const canAdd = true; // Everyone can add room types
+
   useEffect(() => {
     fetchRoomTypes().catch((err) =>
       toast.error(err.message || "Failed to fetch room types"),
@@ -147,6 +193,10 @@ export default function RoomTypes() {
   }
 
   function openEdit(roomType) {
+    if (!canEdit) {
+      toast.error("You don't have permission to edit room types");
+      return;
+    }
     setModal({ open: true, mode: "edit", roomType });
   }
 
@@ -186,18 +236,33 @@ export default function RoomTypes() {
   }
 
   const handleOpenDelete = (type) => {
+    if (!canDelete) {
+      toast.error("You don't have permission to delete room types");
+      return;
+    }
     setDeleteModal({
       open: true,
       roomType: type,
     });
   };
 
+  // Get role display name for info message
+  const getRoleWarningMessage = () => {
+    if (userRole === "receptionist" || userRole === "staff") {
+      return "You can add room types, but cannot edit or delete existing ones.";
+    }
+    return "";
+  };
+
+  // Check if user is view-only for edit/delete
+  const isViewOnlyForEdit = !canEdit;
+
   return (
     <>
       <Helmet>
         <title>Room Type Management - Resort Admin</title>
       </Helmet>
-      <div className="h-full min-h-0 flex flex-col gap-6">
+      <div className="min-h-full flex flex-col gap-6">
         <Toaster
           position="top-center"
           reverseOrder={false}
@@ -219,6 +284,22 @@ export default function RoomTypes() {
             <div className="text-sm text-gray-600">
               Manage room type names and availability status
             </div>
+            {isViewOnlyForEdit && (
+              <div className="mt-2 text-xs text-amber-600 bg-amber-50 inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-amber-200">
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span>{getRoleWarningMessage()}</span>
+              </div>
+            )}
           </div>
 
           <button
@@ -233,6 +314,7 @@ export default function RoomTypes() {
               hover:shadow-lg hover:-translate-y-0.5
               active:translate-y-0
             "
+            title="Add Room Type"
           >
             <FiPlus className="w-4 h-4" />
             Add Room Type
@@ -374,6 +456,8 @@ export default function RoomTypes() {
                 type={type}
                 onEdit={openEdit}
                 onDelete={handleOpenDelete}
+                canEdit={canEdit}
+                canDelete={canDelete}
               />
             ))}
           </div>

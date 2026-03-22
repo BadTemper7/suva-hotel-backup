@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   FiSearch,
-  FiTrash2,
   FiCreditCard,
   FiList,
   FiTag,
@@ -9,8 +8,6 @@ import {
   FiEye,
   FiEdit,
   FiFilter,
-  FiChevronLeft,
-  FiChevronRight,
   FiPrinter,
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
@@ -75,14 +72,7 @@ function isRecentBilling(createdAt) {
   return diffInHours <= 24;
 }
 
-function BillingCard({
-  billing,
-  onUpload,
-  onView,
-  onEdit,
-  selected,
-  onSelect,
-}) {
+function BillingCard({ billing, onUpload, onView, onEdit }) {
   const guest = billing?.reservationId?.guestId;
   const guestName = guest ? `${guest.firstName} ${guest.lastName}` : "—";
   const isPaid = billing.status === "paid";
@@ -110,15 +100,6 @@ function BillingCard({
           New
         </div>
       )}
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={() => onSelect(billing._id)}
-        className="
-          mt-1 h-5 w-5 rounded border-gray-300 
-          text-[#0c2bfc] focus:ring-[#0c2bfc]/20
-        "
-      />
 
       <div className="flex-1 min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
@@ -255,16 +236,16 @@ function BillingCard({
               );
           }}
           className="
-    h-10 px-4 rounded-xl 
-    border border-gray-200 
-    bg-white
-    hover:bg-gray-50
-    text-sm font-medium inline-flex items-center gap-2
-    transition-all duration-200
-    hover:shadow-md hover:-translate-y-0.5
-    active:translate-y-0
-    text-gray-700 hover:text-[#0c2bfc]
-  "
+            h-10 px-4 rounded-xl 
+            border border-gray-200 
+            bg-white
+            hover:bg-gray-50
+            text-sm font-medium inline-flex items-center gap-2
+            transition-all duration-200
+            hover:shadow-md hover:-translate-y-0.5
+            active:translate-y-0
+            text-gray-700 hover:text-[#0c2bfc]
+          "
           title="Print Receipt"
         >
           <FiPrinter className="w-4 h-4" />
@@ -283,9 +264,6 @@ export default function Billing() {
     : billingState?.billings || [];
 
   const fetchBillings = useBillingStore((s) => s.fetchBillings);
-  const deleteMultipleBillings = useBillingStore(
-    (s) => s.deleteMultipleBillings,
-  );
   const updateBilling = useBillingStore((s) => s.updateBilling);
   const loading = useBillingStore((s) => s.loading);
 
@@ -306,8 +284,6 @@ export default function Billing() {
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-
-  const [selectedBillings, setSelectedBillings] = useState([]);
 
   const role = getUserRole();
   const isAdmin = role === "admin" || role === "superadmin";
@@ -357,12 +333,6 @@ export default function Billing() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  // Keep selection valid when filters change
-  useEffect(() => {
-    const visible = new Set(filtered.map((b) => b._id));
-    setSelectedBillings((prev) => prev.filter((id) => visible.has(id)));
-  }, [filtered]);
-
   const openUploadModal = (billing) => setUploadModal({ open: true, billing });
   const closeUploadModal = () => setUploadModal({ open: false, billing: null });
 
@@ -394,37 +364,6 @@ export default function Billing() {
     }
   };
 
-  const handleDeleteSelected = async () => {
-    if (selectedBillings.length === 0) return;
-    if (
-      !confirm(
-        `Are you sure you want to delete ${selectedBillings.length} billing record(s)?`,
-      )
-    )
-      return;
-
-    try {
-      await deleteMultipleBillings(selectedBillings);
-      toast.success(
-        `${selectedBillings.length} billing record(s) deleted successfully`,
-      );
-      setSelectedBillings([]);
-    } catch (err) {
-      toast.error(err.message || "Failed to delete selected billings");
-    }
-  };
-
-  const toggleSelectBilling = (id) => {
-    setSelectedBillings((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedBillings.length === paged.length) setSelectedBillings([]);
-    else setSelectedBillings(paged.map((b) => b._id));
-  };
-
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -432,7 +371,7 @@ export default function Billing() {
     }).format(n || 0);
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-6">
+    <div className="min-h-full flex flex-col gap-6">
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -457,26 +396,6 @@ export default function Billing() {
         </div>
 
         <div className="flex items-center gap-3">
-          {isAdmin && selectedBillings.length > 0 && (
-            <button
-              onClick={handleDeleteSelected}
-              disabled={loading}
-              className="
-                h-11 px-5 rounded-xl 
-                bg-[#0c2bfc] 
-                hover:bg-[#0a24d6]
-                text-white text-sm font-medium inline-flex items-center gap-2
-                transition-all duration-200
-                hover:shadow-lg hover:-translate-y-0.5
-                active:translate-y-0
-                disabled:opacity-70 disabled:cursor-not-allowed
-              "
-            >
-              <FiTrash2 className="w-4 h-4" />
-              Delete ({selectedBillings.length})
-            </button>
-          )}
-
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -617,8 +536,6 @@ export default function Billing() {
             onUpload={openUploadModal}
             onView={openViewReceiptsModal}
             onEdit={openEditModal}
-            selected={selectedBillings.includes(b._id)}
-            onSelect={toggleSelectBilling}
           />
         ))}
         {paged.length === 0 && (
@@ -670,23 +587,8 @@ export default function Billing() {
           bg-gray-50
         "
         >
-          <div className="flex items-center gap-3">
-            {isAdmin && (
-              <input
-                type="checkbox"
-                checked={
-                  selectedBillings.length === paged.length && paged.length > 0
-                }
-                onChange={toggleSelectAll}
-                className="
-                  h-5 w-5 rounded border-gray-300 
-                  text-[#0c2bfc] focus:ring-[#0c2bfc]/20
-                "
-              />
-            )}
-            <div className="text-sm font-semibold text-gray-900">
-              Billing Records ({total})
-            </div>
+          <div className="text-sm font-semibold text-gray-900">
+            Billing Records ({total})
           </div>
 
           <div className="flex items-center gap-4">
@@ -719,19 +621,6 @@ export default function Billing() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                {isAdmin && (
-                  <th className="px-6 py-4 w-12">
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedBillings.length === paged.length &&
-                        paged.length > 0
-                      }
-                      onChange={toggleSelectAll}
-                      className="h-5 w-5 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/20"
-                    />
-                  </th>
-                )}
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
                   Billing #
                 </th>
@@ -762,11 +651,9 @@ export default function Billing() {
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
                   Created
                 </th>
-                {isAdmin && (
-                  <th className="text-right font-semibold text-gray-700 px-6 py-4">
-                    Actions
-                  </th>
-                )}
+                <th className="text-right font-semibold text-gray-700 px-6 py-4">
+                  Actions
+                </th>
               </tr>
             </thead>
 
@@ -789,20 +676,6 @@ export default function Billing() {
                     ${recent ? "bg-[#0c2bfc]/5" : ""}
                   `}
                   >
-                    {isAdmin && (
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedBillings.includes(b._id)}
-                          onChange={() => toggleSelectBilling(b._id)}
-                          className="
-                            h-5 w-5 rounded border-gray-300 
-                            text-[#0c2bfc] focus:ring-[#0c2bfc]/20
-                          "
-                        />
-                      </td>
-                    )}
-
                     <td className="px-6 py-4">
                       <div className="font-semibold text-gray-900 flex items-center gap-2">
                         {b.billingNumber}
@@ -870,116 +743,84 @@ export default function Billing() {
                       </div>
                     </td>
 
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(b)}
-                            className="
-                              h-10 px-4 rounded-xl 
-                              border border-gray-200 
-                              bg-white
-                              hover:bg-gray-50
-                              text-sm font-medium inline-flex items-center gap-2
-                              transition-all duration-200
-                              hover:shadow-md hover:-translate-y-0.5
-                              active:translate-y-0
-                              text-gray-700 hover:text-[#0c2bfc]
-                            "
-                          >
-                            <FiEdit className="w-4 h-4" />
-                          </button>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(b)}
+                          className="
+                            h-10 px-4 rounded-xl 
+                            border border-gray-200 
+                            bg-white
+                            hover:bg-gray-50
+                            text-sm font-medium inline-flex items-center gap-2
+                            transition-all duration-200
+                            hover:shadow-md hover:-translate-y-0.5
+                            active:translate-y-0
+                            text-gray-700 hover:text-[#0c2bfc]
+                          "
+                        >
+                          <FiEdit className="w-4 h-4" />
+                        </button>
 
-                          <button
-                            type="button"
-                            onClick={() => openViewReceiptsModal(b)}
-                            className="
-                              h-10 px-4 rounded-xl 
-                              border border-gray-200 
-                              bg-white
-                              hover:bg-gray-50
-                              text-sm font-medium inline-flex items-center gap-2
-                              transition-all duration-200
-                              hover:shadow-md hover:-translate-y-0.5
-                              active:translate-y-0
-                              text-gray-700 hover:text-[#0c2bfc]
-                            "
-                          >
-                            <FiEye className="w-4 h-4" />
-                          </button>
+                        <button
+                          type="button"
+                          onClick={() => openViewReceiptsModal(b)}
+                          className="
+                            h-10 px-4 rounded-xl 
+                            border border-gray-200 
+                            bg-white
+                            hover:bg-gray-50
+                            text-sm font-medium inline-flex items-center gap-2
+                            transition-all duration-200
+                            hover:shadow-md hover:-translate-y-0.5
+                            active:translate-y-0
+                            text-gray-700 hover:text-[#0c2bfc]
+                          "
+                        >
+                          <FiEye className="w-4 h-4" />
+                        </button>
 
-                          {isPaid ? (
-                            <span
-                              className="
+                        {isPaid ? (
+                          <span
+                            className="
                               h-10 px-4 rounded-xl 
                               border border-gray-200 
                               bg-[#00af00]/10
                               text-sm font-medium inline-flex items-center justify-center gap-2
                               text-[#00af00] cursor-not-allowed
                             "
-                            >
-                              <FiUpload className="w-4 h-4" />
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => openUploadModal(b)}
-                              className="
-                                h-10 px-4 rounded-xl 
-                                border border-gray-200 
-                                bg-white
-                                hover:bg-gray-50
-                                text-sm font-medium inline-flex items-center gap-2
-                                transition-all duration-200
-                                hover:shadow-md hover:-translate-y-0.5
-                                active:translate-y-0
-                                text-gray-700 hover:text-[#0c2bfc]
-                              "
-                            >
-                              <FiUpload className="w-4 h-4" />
-                            </button>
-                          )}
+                          >
+                            <FiUpload className="w-4 h-4" />
+                          </span>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => {
-                              const billingStore = useBillingStore.getState();
-                              billingStore
-                                .printReceipt(b._id)
-                                .catch((err) =>
-                                  toast.error(
-                                    err.message || "Failed to print receipt",
-                                  ),
-                                );
-                            }}
+                            onClick={() => openUploadModal(b)}
                             className="
-    h-10 px-4 rounded-xl 
-    border border-gray-200 
-    bg-white
-    hover:bg-gray-50
-    text-sm font-medium inline-flex items-center gap-2
-    transition-all duration-200
-    hover:shadow-md hover:-translate-y-0.5
-    active:translate-y-0
-    text-gray-700 hover:text-[#0c2bfc]
-  "
-                            title="Print Receipt"
+                              h-10 px-4 rounded-xl 
+                              border border-gray-200 
+                              bg-white
+                              hover:bg-gray-50
+                              text-sm font-medium inline-flex items-center gap-2
+                              transition-all duration-200
+                              hover:shadow-md hover:-translate-y-0.5
+                              active:translate-y-0
+                              text-gray-700 hover:text-[#0c2bfc]
+                            "
                           >
-                            <FiPrinter className="w-4 h-4" />
+                            <FiUpload className="w-4 h-4" />
                           </button>
-                        </div>
-                      </td>
-                    )}
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
 
               {paged.length === 0 && (
                 <tr>
-                  <td
-                    colSpan={isAdmin ? 12 : 11}
-                    className="px-6 py-16 text-center"
-                  >
+                  <td colSpan={11} className="px-6 py-16 text-center">
                     <div className="text-gray-300 mb-3">
                       <svg
                         className="w-16 h-16 mx-auto"
@@ -1035,7 +876,6 @@ export default function Billing() {
           open={viewReceiptsModal.open}
           onClose={closeViewReceiptsModal}
           billing={viewReceiptsModal.billing}
-          
         />
       )}
 

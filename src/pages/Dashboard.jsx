@@ -1049,7 +1049,7 @@ export default function Dashboard() {
   const showFullScreenLoader = reports.loading || initialLoad;
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-6 relative">
+    <div className="min-h-full flex flex-col gap-6 relative">
       {/* Full-screen loader overlay */}
       {showFullScreenLoader && (
         <div className="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center">

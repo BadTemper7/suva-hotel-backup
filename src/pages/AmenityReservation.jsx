@@ -288,7 +288,7 @@ export default function AmenityReservation() {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
+    <div className="min-h-full flex flex-col gap-4">
       <Toaster position="top-center" reverseOrder={false} />
 
       {/* Header */}

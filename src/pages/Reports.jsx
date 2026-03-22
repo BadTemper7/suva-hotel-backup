@@ -9,7 +9,6 @@ import {
   FiFileText,
   FiBarChart2,
   FiTrendingUp,
-  FiDollarSign,
   FiCreditCard,
   FiRefreshCw,
   FiCalendar,
@@ -24,10 +23,20 @@ import {
   FiXCircle,
   FiClock,
   FiMoreVertical,
-  FiTrash2,
   FiPlus,
 } from "react-icons/fi";
 import Pagination from "../components/ui/Pagination.jsx";
+
+// Peso Icon Component
+const PesoIcon = ({ className = "w-5 h-5", ...props }) => (
+  <span
+    className={`inline-flex items-center justify-center font-bold ${className}`}
+    style={{ fontFamily: "system-ui" }}
+    {...props}
+  >
+    ₱
+  </span>
+);
 
 const Reports = () => {
   const {
@@ -83,7 +92,7 @@ const Reports = () => {
     {
       label: "Revenue",
       value: "revenue",
-      icon: <FiDollarSign />,
+      icon: <PesoIcon />,
       color: "text-[#00af00]",
       bgColor: "bg-[#00af00]/10",
     },
@@ -571,7 +580,7 @@ const Reports = () => {
           <MetricCard
             title="Total Revenue"
             value={formatCurrency(data.totals?.totalRevenue)}
-            icon={<FiDollarSign />}
+            icon={<PesoIcon />}
           />
           <MetricCard
             title="Amount Collected"
@@ -810,7 +819,7 @@ const Reports = () => {
           <MetricCard
             title="Total Received"
             value={formatCurrency(data.totals?.totalAmountReceived)}
-            icon={<FiDollarSign />}
+            icon={<PesoIcon />}
           />
           <MetricCard
             title="Total Change"
@@ -1273,7 +1282,7 @@ const Reports = () => {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-6">
+    <div className="min-h-full flex flex-col gap-6">
       <Toaster
         position="top-center"
         reverseOrder={false}

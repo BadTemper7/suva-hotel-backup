@@ -40,7 +40,7 @@ function StatusPill({ value }) {
   );
 }
 
-function AmenityCard({ amenity, onEdit, selected, onSelect }) {
+function AmenityCard({ amenity, onEdit, selected, onSelect, canEdit = true }) {
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -110,23 +110,25 @@ function AmenityCard({ amenity, onEdit, selected, onSelect }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onEdit(amenity)}
-        className="
-          h-10 px-4 rounded-xl 
-          border border-gray-200 
-          bg-white
-          hover:bg-gray-50
-          text-sm font-medium inline-flex items-center gap-2
-          transition-all duration-200
-          hover:shadow-md hover:-translate-y-0.5
-          active:translate-y-0
-          text-gray-700 hover:text-[#0c2bfc]
-        "
-      >
-        <FiEdit2 className="w-4 h-4" /> Edit
-      </button>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={() => onEdit(amenity)}
+          className="
+            h-10 px-4 rounded-xl 
+            border border-gray-200 
+            bg-white
+            hover:bg-gray-50
+            text-sm font-medium inline-flex items-center gap-2
+            transition-all duration-200
+            hover:shadow-md hover:-translate-y-0.5
+            active:translate-y-0
+            text-gray-700 hover:text-[#0c2bfc]
+          "
+        >
+          <FiEdit2 className="w-4 h-4" /> Edit
+        </button>
+      )}
     </div>
   );
 }
@@ -155,7 +157,11 @@ export default function Amenities() {
   const [selectedAmenities, setSelectedAmenities] = useState([]);
 
   const role = getUserRole();
-  const isAdmin = role === "admin" || role === "superadmin";
+
+  // Permissions: Admin and superadmin can edit/delete, everyone can add
+  const canEditDelete = role === "admin" || role === "superadmin";
+  const canAdd = true; // Everyone can add amenities
+  const isViewOnly = !canEditDelete;
 
   useEffect(() => {
     fetchAmenities().catch((err) =>
@@ -186,7 +192,13 @@ export default function Amenities() {
   }, [page, totalPages]);
 
   const openAdd = () => setModal({ open: true, mode: "add", amenity: null });
-  const openEdit = (amenity) => setModal({ open: true, mode: "edit", amenity });
+  const openEdit = (amenity) => {
+    if (!canEditDelete) {
+      toast.error("You don't have permission to edit amenities");
+      return;
+    }
+    setModal({ open: true, mode: "edit", amenity });
+  };
   const closeModal = () =>
     setModal({ open: false, mode: "add", amenity: null });
 
@@ -222,6 +234,10 @@ export default function Amenities() {
 
   const handleDeleteSelected = async () => {
     if (selectedAmenities.length === 0) return;
+    if (!canEditDelete) {
+      toast.error("You don't have permission to delete amenities");
+      return;
+    }
     if (
       !confirm(
         `Are you sure you want to delete ${selectedAmenities.length} amenity(ies)?`,
@@ -241,7 +257,7 @@ export default function Amenities() {
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-6">
+    <div className="min-h-full flex flex-col gap-6">
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -263,10 +279,24 @@ export default function Amenities() {
           <div className="text-sm text-gray-600">
             Manage resort amenities, rates, stock, and availability
           </div>
+          {isViewOnly && (
+            <div className="mt-2 text-xs text-amber-600 bg-amber-50 inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-amber-200">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span>
+                You can add amenities, but cannot edit or delete existing ones.
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
-          {isAdmin && selectedAmenities.length > 0 && (
+          {canEditDelete && selectedAmenities.length > 0 && (
             <button
               onClick={handleDeleteSelected}
               disabled={loading}
@@ -286,23 +316,22 @@ export default function Amenities() {
             </button>
           )}
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={openAdd}
-              className="
-                h-11 px-5 rounded-xl 
-                bg-[#0c2bfc] 
-                hover:bg-[#0a24d6]
-                text-white text-sm font-medium inline-flex items-center gap-2
-                transition-all duration-200
-                hover:shadow-lg hover:-translate-y-0.5
-                active:translate-y-0
-              "
-            >
-              <FiPlus className="w-4 h-4" /> Add Amenity
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={openAdd}
+            className="
+              h-11 px-5 rounded-xl 
+              bg-[#0c2bfc] 
+              hover:bg-[#0a24d6]
+              text-white text-sm font-medium inline-flex items-center gap-2
+              transition-all duration-200
+              hover:shadow-lg hover:-translate-y-0.5
+              active:translate-y-0
+            "
+            title="Add Amenity"
+          >
+            <FiPlus className="w-4 h-4" /> Add Amenity
+          </button>
         </div>
       </div>
 
@@ -379,6 +408,7 @@ export default function Amenities() {
             onEdit={openEdit}
             selected={selectedAmenities.includes(a._id)}
             onSelect={toggleSelectAmenity}
+            canEdit={canEditDelete}
           />
         ))}
         {paged.length === 0 && (
@@ -408,6 +438,22 @@ export default function Amenities() {
             <div className="text-sm text-gray-500 mt-1">
               Try adjusting your search or filters
             </div>
+            <button
+              type="button"
+              onClick={openAdd}
+              className="
+                mt-4 h-10 px-4 rounded-xl 
+                bg-[#0c2bfc] 
+                hover:bg-[#0a24d6]
+                text-white text-sm font-medium inline-flex items-center gap-2
+                transition-all duration-200
+                hover:shadow-md hover:-translate-y-0.5
+                active:translate-y-0
+              "
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Amenity
+            </button>
           </div>
         )}
       </div>
@@ -429,7 +475,7 @@ export default function Amenities() {
         "
         >
           <div className="flex items-center gap-3">
-            {isAdmin && (
+            {canEditDelete && (
               <input
                 type="checkbox"
                 checked={
@@ -477,7 +523,7 @@ export default function Amenities() {
           <table className="min-w-full text-sm">
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
-                {isAdmin && (
+                {canEditDelete && (
                   <th className="px-6 py-4 w-12">
                     <input
                       type="checkbox"
@@ -502,7 +548,7 @@ export default function Amenities() {
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
                   Status
                 </th>
-                {isAdmin && (
+                {canEditDelete && (
                   <th className="text-right font-semibold text-gray-700 px-6 py-4">
                     Actions
                   </th>
@@ -520,7 +566,7 @@ export default function Amenities() {
                     transition-colors duration-150
                   "
                 >
-                  {isAdmin && (
+                  {canEditDelete && (
                     <td className="px-6 py-4">
                       <input
                         type="checkbox"
@@ -568,7 +614,7 @@ export default function Amenities() {
                     <StatusPill value={a.status} />
                   </td>
 
-                  {isAdmin && (
+                  {canEditDelete && (
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
@@ -595,7 +641,7 @@ export default function Amenities() {
               {paged.length === 0 && (
                 <tr>
                   <td
-                    colSpan={isAdmin ? 6 : 5}
+                    colSpan={canEditDelete ? 6 : 5}
                     className="px-6 py-16 text-center"
                   >
                     <div className="text-gray-300 mb-3">
@@ -619,6 +665,22 @@ export default function Amenities() {
                     <div className="text-sm text-gray-500 mt-2">
                       Try adjusting your search criteria or add a new amenity
                     </div>
+                    <button
+                      type="button"
+                      onClick={openAdd}
+                      className="
+                        mt-4 h-10 px-4 rounded-xl 
+                        bg-[#0c2bfc] 
+                        hover:bg-[#0a24d6]
+                        text-white text-sm font-medium inline-flex items-center gap-2
+                        transition-all duration-200
+                        hover:shadow-md hover:-translate-y-0.5
+                        active:translate-y-0
+                      "
+                    >
+                      <FiPlus className="w-4 h-4" />
+                      Add Amenity
+                    </button>
                   </td>
                 </tr>
               )}
