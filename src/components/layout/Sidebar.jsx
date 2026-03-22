@@ -27,6 +27,7 @@ const NAV = [
   { to: "/reports", label: "Reports", icon: FiBarChart2 },
   // { to: "/maintenance", label: "Maintenance", icon: FiTool },
   // { to: "/lost-found", label: "Lost & Found", icon: FiSearch },
+  { to: "/inbox", label: "Inbox", icon: FiSearch },
   { to: "/settings", label: "Settings", icon: FiSettings },
 ];
 

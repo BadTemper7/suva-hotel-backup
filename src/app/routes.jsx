@@ -26,6 +26,7 @@ const Login = lazy(() => import("../pages/Login.jsx"));
 const NotFound = lazy(() => import("../pages/NotFound.jsx"));
 const Reports = lazy(() => import("../pages/Reports.jsx"));
 const Users = lazy(() => import("../pages/Users.jsx"));
+const Inbox = lazy(() => import("../pages/Inbox.jsx"));
 const Notifications = lazy(() => import("../pages/Notifications.jsx"));
 const RoomTypes = lazy(() => import("../pages/RoomTypes.jsx"));
 const Amenities = lazy(() => import("../pages/Amenities.jsx"));
@@ -126,6 +127,7 @@ export default [
             element: withLoader(<Billing />, "Loading billing..."),
           },
           { path: "users", element: withLoader(<Users />, "Loading users...") },
+          { path: "inbox", element: withLoader(<Inbox />, "Loading inbox...") },
           {
             path: "reports",
             element: withLoader(<Reports />, "Loading reports..."),
