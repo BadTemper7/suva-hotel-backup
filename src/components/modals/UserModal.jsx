@@ -69,7 +69,7 @@ export default function UserModal({ open, mode, user, onClose }) {
       setStatus(user.status || "active");
       setPassword("");
       setConfirmPassword("");
-      
+
       // Reset touched states
       setTouched({
         firstName: false,
@@ -80,7 +80,7 @@ export default function UserModal({ open, mode, user, onClose }) {
         password: false,
         confirmPassword: false,
       });
-      
+
       // Clear errors
       setErrors({
         firstName: "",
@@ -101,7 +101,7 @@ export default function UserModal({ open, mode, user, onClose }) {
       setStatus("active");
       setPassword("");
       setConfirmPassword("");
-      
+
       // Reset touched states
       setTouched({
         firstName: false,
@@ -112,7 +112,7 @@ export default function UserModal({ open, mode, user, onClose }) {
         password: false,
         confirmPassword: false,
       });
-      
+
       // Clear errors
       setErrors({
         firstName: "",
@@ -126,22 +126,32 @@ export default function UserModal({ open, mode, user, onClose }) {
     }
   }, [open, mode, user]);
 
-  // Validation functions
+  // Validation functions with length limits
   const validateFirstName = (value) => {
     if (!value.trim()) return "First name is required";
-    if (!isValidName(value)) return "First name can only contain letters and spaces";
+    if (!isValidName(value))
+      return "First name can only contain letters and spaces";
+    if (value.trim().length < 2)
+      return "First name must be at least 2 characters";
+    if (value.trim().length > 50)
+      return "First name cannot exceed 50 characters";
     return "";
   };
 
   const validateLastName = (value) => {
     if (!value.trim()) return "Last name is required";
-    if (!isValidName(value)) return "Last name can only contain letters and spaces";
+    if (!isValidName(value))
+      return "Last name can only contain letters and spaces";
+    if (value.trim().length < 2)
+      return "Last name must be at least 2 characters";
+    if (value.trim().length > 50)
+      return "Last name cannot exceed 50 characters";
     return "";
   };
 
   const validateUsername = (value) => {
     if (!value.trim()) return "Username is required";
-    if (!isValidUsername(value)) 
+    if (!isValidUsername(value))
       return "Username must be 8-16 characters and can only contain letters, numbers, and underscores";
     return "";
   };
@@ -160,7 +170,7 @@ export default function UserModal({ open, mode, user, onClose }) {
 
   const validatePassword = (value) => {
     if (!value && mode === "add") return "Password is required";
-    if (mode === "add" && !isValidPassword(value)) 
+    if (mode === "add" && !isValidPassword(value))
       return "Password must be 8-16 characters, contain at least one uppercase letter and one special character (_!@#$%^&*)";
     return "";
   };
@@ -173,56 +183,83 @@ export default function UserModal({ open, mode, user, onClose }) {
 
   // Handle blur events to mark fields as touched
   const handleBlur = (field) => {
-    setTouched(prev => ({ ...prev, [field]: true }));
-    
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
     // Validate on blur
-    switch(field) {
+    switch (field) {
       case "firstName":
-        setErrors(prev => ({ ...prev, firstName: validateFirstName(firstName) }));
+        setErrors((prev) => ({
+          ...prev,
+          firstName: validateFirstName(firstName),
+        }));
         break;
       case "lastName":
-        setErrors(prev => ({ ...prev, lastName: validateLastName(lastName) }));
+        setErrors((prev) => ({
+          ...prev,
+          lastName: validateLastName(lastName),
+        }));
         break;
       case "username":
-        setErrors(prev => ({ ...prev, username: validateUsername(username) }));
+        setErrors((prev) => ({
+          ...prev,
+          username: validateUsername(username),
+        }));
         break;
       case "email":
-        setErrors(prev => ({ ...prev, email: validateEmail(email) }));
+        setErrors((prev) => ({ ...prev, email: validateEmail(email) }));
         break;
       case "contactNumber":
-        setErrors(prev => ({ ...prev, contactNumber: validateContactNumber(contactNumber) }));
+        setErrors((prev) => ({
+          ...prev,
+          contactNumber: validateContactNumber(contactNumber),
+        }));
         break;
       case "password":
         if (mode === "add") {
-          setErrors(prev => ({ ...prev, password: validatePassword(password) }));
+          setErrors((prev) => ({
+            ...prev,
+            password: validatePassword(password),
+          }));
           // Also validate confirm password if it has a value
           if (confirmPassword) {
-            setErrors(prev => ({ ...prev, confirmPassword: validateConfirmPassword(confirmPassword) }));
+            setErrors((prev) => ({
+              ...prev,
+              confirmPassword: validateConfirmPassword(confirmPassword),
+            }));
           }
         }
         break;
       case "confirmPassword":
         if (mode === "add") {
-          setErrors(prev => ({ ...prev, confirmPassword: validateConfirmPassword(confirmPassword) }));
+          setErrors((prev) => ({
+            ...prev,
+            confirmPassword: validateConfirmPassword(confirmPassword),
+          }));
         }
         break;
     }
   };
 
-  // Handle input changes with real-time validation
+  // Handle input changes with real-time validation and length limits
   const handleFirstNameChange = (e) => {
     const value = e.target.value;
-    setFirstName(value);
-    if (touched.firstName) {
-      setErrors(prev => ({ ...prev, firstName: validateFirstName(value) }));
+    // Limit to 50 characters
+    if (value.length <= 50) {
+      setFirstName(value);
+      if (touched.firstName) {
+        setErrors((prev) => ({ ...prev, firstName: validateFirstName(value) }));
+      }
     }
   };
 
   const handleLastNameChange = (e) => {
     const value = e.target.value;
-    setLastName(value);
-    if (touched.lastName) {
-      setErrors(prev => ({ ...prev, lastName: validateLastName(value) }));
+    // Limit to 50 characters
+    if (value.length <= 50) {
+      setLastName(value);
+      if (touched.lastName) {
+        setErrors((prev) => ({ ...prev, lastName: validateLastName(value) }));
+      }
     }
   };
 
@@ -230,7 +267,7 @@ export default function UserModal({ open, mode, user, onClose }) {
     const value = e.target.value;
     setUsername(value);
     if (touched.username) {
-      setErrors(prev => ({ ...prev, username: validateUsername(value) }));
+      setErrors((prev) => ({ ...prev, username: validateUsername(value) }));
     }
   };
 
@@ -238,7 +275,7 @@ export default function UserModal({ open, mode, user, onClose }) {
     const value = e.target.value;
     setEmail(value);
     if (touched.email) {
-      setErrors(prev => ({ ...prev, email: validateEmail(value) }));
+      setErrors((prev) => ({ ...prev, email: validateEmail(value) }));
     }
   };
 
@@ -246,7 +283,10 @@ export default function UserModal({ open, mode, user, onClose }) {
     const value = e.target.value;
     setContactNumber(value);
     if (touched.contactNumber) {
-      setErrors(prev => ({ ...prev, contactNumber: validateContactNumber(value) }));
+      setErrors((prev) => ({
+        ...prev,
+        contactNumber: validateContactNumber(value),
+      }));
     }
   };
 
@@ -254,10 +294,13 @@ export default function UserModal({ open, mode, user, onClose }) {
     const value = e.target.value;
     setPassword(value);
     if (touched.password && mode === "add") {
-      setErrors(prev => ({ ...prev, password: validatePassword(value) }));
+      setErrors((prev) => ({ ...prev, password: validatePassword(value) }));
       // Also validate confirm password if it has a value
       if (confirmPassword) {
-        setErrors(prev => ({ ...prev, confirmPassword: validateConfirmPassword(confirmPassword) }));
+        setErrors((prev) => ({
+          ...prev,
+          confirmPassword: validateConfirmPassword(confirmPassword),
+        }));
       }
     }
   };
@@ -266,7 +309,10 @@ export default function UserModal({ open, mode, user, onClose }) {
     const value = e.target.value;
     setConfirmPassword(value);
     if (touched.confirmPassword && mode === "add") {
-      setErrors(prev => ({ ...prev, confirmPassword: validateConfirmPassword(value) }));
+      setErrors((prev) => ({
+        ...prev,
+        confirmPassword: validateConfirmPassword(value),
+      }));
     }
   };
 
@@ -307,7 +353,7 @@ export default function UserModal({ open, mode, user, onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Mark all fields as touched
     setTouched({
       firstName: true,
@@ -325,7 +371,7 @@ export default function UserModal({ open, mode, user, onClose }) {
     const usernameError = validateUsername(username);
     const emailError = validateEmail(email);
     const contactError = validateContactNumber(contactNumber);
-    
+
     setErrors({
       firstName: firstNameError,
       lastName: lastNameError,
@@ -333,7 +379,8 @@ export default function UserModal({ open, mode, user, onClose }) {
       email: emailError,
       contactNumber: contactError,
       password: mode === "add" ? validatePassword(password) : "",
-      confirmPassword: mode === "add" ? validateConfirmPassword(confirmPassword) : "",
+      confirmPassword:
+        mode === "add" ? validateConfirmPassword(confirmPassword) : "",
     });
 
     // Check if there are any errors
@@ -343,7 +390,9 @@ export default function UserModal({ open, mode, user, onClose }) {
       usernameError ||
       emailError ||
       contactError ||
-      (mode === "add" && (validatePassword(password) || validateConfirmPassword(confirmPassword)))
+      (mode === "add" &&
+        (validatePassword(password) ||
+          validateConfirmPassword(confirmPassword)))
     ) {
       return;
     }
@@ -420,6 +469,7 @@ export default function UserModal({ open, mode, user, onClose }) {
                     onChange={handleFirstNameChange}
                     onBlur={() => handleBlur("firstName")}
                     placeholder="First Name"
+                    maxLength={50}
                     className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 ${
                       touched.firstName && errors.firstName
                         ? "border-red-300 focus:border-red-300"
@@ -428,7 +478,14 @@ export default function UserModal({ open, mode, user, onClose }) {
                     required
                   />
                   {touched.firstName && errors.firstName && (
-                    <p className="mt-1 text-xs text-red-500">{errors.firstName}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.firstName}
+                    </p>
+                  )}
+                  {touched.firstName && !errors.firstName && firstName && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {firstName.length}/50 characters
+                    </p>
                   )}
                 </div>
 
@@ -439,6 +496,7 @@ export default function UserModal({ open, mode, user, onClose }) {
                     onChange={handleLastNameChange}
                     onBlur={() => handleBlur("lastName")}
                     placeholder="Last Name"
+                    maxLength={50}
                     className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 ${
                       touched.lastName && errors.lastName
                         ? "border-red-300 focus:border-red-300"
@@ -447,7 +505,14 @@ export default function UserModal({ open, mode, user, onClose }) {
                     required
                   />
                   {touched.lastName && errors.lastName && (
-                    <p className="mt-1 text-xs text-red-500">{errors.lastName}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.lastName}
+                    </p>
+                  )}
+                  {touched.lastName && !errors.lastName && lastName && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {lastName.length}/50 characters
+                    </p>
                   )}
                 </div>
 
@@ -466,7 +531,9 @@ export default function UserModal({ open, mode, user, onClose }) {
                     required
                   />
                   {touched.username && errors.username && (
-                    <p className="mt-1 text-xs text-red-500">{errors.username}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.username}
+                    </p>
                   )}
                 </div>
 
@@ -504,7 +571,9 @@ export default function UserModal({ open, mode, user, onClose }) {
                     }`}
                   />
                   {touched.contactNumber && errors.contactNumber && (
-                    <p className="mt-1 text-xs text-red-500">{errors.contactNumber}</p>
+                    <p className="mt-1 text-xs text-red-500">
+                      {errors.contactNumber}
+                    </p>
                   )}
                 </div>
 
@@ -557,10 +626,16 @@ export default function UserModal({ open, mode, user, onClose }) {
                         onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-2 text-gray-500 hover:text-[#0c2bfc] transition-colors"
                       >
-                        {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        {showPassword ? (
+                          <FiEyeOff size={18} />
+                        ) : (
+                          <FiEye size={18} />
+                        )}
                       </button>
                       {touched.password && errors.password && (
-                        <p className="mt-1 text-xs text-red-500">{errors.password}</p>
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.password}
+                        </p>
                       )}
                     </div>
 
@@ -584,10 +659,16 @@ export default function UserModal({ open, mode, user, onClose }) {
                         onClick={() => setShowConfirm(!showConfirm)}
                         className="absolute right-3 top-2 text-gray-500 hover:text-[#0c2bfc] transition-colors"
                       >
-                        {showConfirm ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                        {showConfirm ? (
+                          <FiEyeOff size={18} />
+                        ) : (
+                          <FiEye size={18} />
+                        )}
                       </button>
                       {touched.confirmPassword && errors.confirmPassword && (
-                        <p className="mt-1 text-xs text-red-500">{errors.confirmPassword}</p>
+                        <p className="mt-1 text-xs text-red-500">
+                          {errors.confirmPassword}
+                        </p>
                       )}
                     </div>
                   </>
