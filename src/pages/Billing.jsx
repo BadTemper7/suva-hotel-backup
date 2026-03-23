@@ -747,24 +747,6 @@ export default function Billing() {
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => openEditModal(b)}
-                          className="
-                            h-10 px-4 rounded-xl 
-                            border border-gray-200 
-                            bg-white
-                            hover:bg-gray-50
-                            text-sm font-medium inline-flex items-center gap-2
-                            transition-all duration-200
-                            hover:shadow-md hover:-translate-y-0.5
-                            active:translate-y-0
-                            text-gray-700 hover:text-[#0c2bfc]
-                          "
-                        >
-                          <FiEdit className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => openViewReceiptsModal(b)}
                           className="
                             h-10 px-4 rounded-xl 
@@ -876,16 +858,6 @@ export default function Billing() {
           open={viewReceiptsModal.open}
           onClose={closeViewReceiptsModal}
           billing={viewReceiptsModal.billing}
-        />
-      )}
-
-      {/* Edit Billing Modal */}
-      {editModal.open && (
-        <EditBillingModal
-          open={editModal.open}
-          onClose={closeEditModal}
-          billing={editModal.billing}
-          onSave={handleEditBilling}
         />
       )}
 

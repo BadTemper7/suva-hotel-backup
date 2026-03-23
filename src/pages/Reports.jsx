@@ -333,28 +333,40 @@ const Reports = () => {
     const data = reports.reservations;
     if (!data) return null;
 
+    // Helper to format numbers
+    const formatNumber = (num) => {
+      if (num === undefined || num === null) return "0";
+      return Number(num).toLocaleString();
+    };
+
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <MetricCard
             title="Total Reservations"
-            value={data.totalReservations}
+            value={formatNumber(data.totalReservations || 0)}
             icon={<FiUsers />}
           />
           <MetricCard
             title="New Reservations"
-            value={data.newReservations || "0"}
+            value={formatNumber(data.newReservations || 0)}
             icon={<FiActivity />}
+            trend={data.newReservations > 0 ? { value: 0 } : null}
           />
           <MetricCard
             title="Avg. Stay Duration"
-            value={`${data.averageNights || "0"} nights`}
+            value={`${data.averageNights || 0} night${data.averageNights !== 1 ? "s" : ""}`}
             icon={<FiClock />}
           />
           <MetricCard
             title="Cancellation Rate"
-            value={`${data.cancellationRate || "0"}%`}
+            value={`${data.cancellationRate || 0}%`}
             icon={<FiXCircle />}
+            trend={
+              data.cancellationRate > 0
+                ? { value: -data.cancellationRate }
+                : null
+            }
           />
         </div>
 
@@ -364,10 +376,12 @@ const Reports = () => {
               <h3 className="text-lg font-semibold text-gray-900">
                 Reservation Details
               </h3>
-              <span className="text-sm text-gray-600">
-                {format(new Date(data.dateRange?.start), "MMM dd, yyyy")} -{" "}
-                {format(new Date(data.dateRange?.end), "MMM dd, yyyy")}
-              </span>
+              {data.dateRange && (
+                <span className="text-sm text-gray-600">
+                  {format(new Date(data.dateRange.start), "MMM dd, yyyy")} -{" "}
+                  {format(new Date(data.dateRange.end), "MMM dd, yyyy")}
+                </span>
+              )}
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -385,6 +399,9 @@ const Reports = () => {
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Rooms
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Nights
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Status
@@ -414,7 +431,7 @@ const Reports = () => {
                       <div>
                         <p className="font-medium text-gray-900">
                           {reservation.guestId
-                            ? `${reservation.guestId.firstName} ${reservation.guestId.lastName}`
+                            ? `${reservation.guestId.firstName || ""} ${reservation.guestId.lastName || ""}`.trim()
                             : "N/A"}
                         </p>
                         <p className="text-sm text-gray-600">
@@ -430,7 +447,9 @@ const Reports = () => {
                             size={14}
                           />
                           <span className="text-gray-700">
-                            {format(new Date(reservation.checkIn), "MMM dd")}
+                            {reservation.checkIn
+                              ? format(new Date(reservation.checkIn), "MMM dd")
+                              : "N/A"}
                           </span>
                         </div>
                         <div className="flex items-center text-sm">
@@ -439,7 +458,9 @@ const Reports = () => {
                             size={14}
                           />
                           <span className="text-gray-700">
-                            {format(new Date(reservation.checkOut), "MMM dd")}
+                            {reservation.checkOut
+                              ? format(new Date(reservation.checkOut), "MMM dd")
+                              : "N/A"}
                           </span>
                         </div>
                       </div>
@@ -451,22 +472,46 @@ const Reports = () => {
                             key={idx}
                             className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded-md border border-gray-200"
                           >
-                            {room.roomNumber}
+                            {room.roomNumber || "N/A"}
                           </span>
                         ))}
+                        {(!reservation.rooms ||
+                          reservation.rooms.length === 0) && (
+                          <span className="text-gray-400 italic">No rooms</span>
+                        )}
                       </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-medium text-gray-900">
+                        {reservation.nights || 0}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <StatusBadge status={reservation.status} />
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {format(new Date(reservation.createdAt), "MMM dd, yyyy")}
+                      {reservation.createdAt
+                        ? format(
+                            new Date(reservation.createdAt),
+                            "MMM dd, yyyy",
+                          )
+                        : "N/A"}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {(!data.reservations || data.reservations.length === 0) && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 mb-2">
+                <FiFileText className="w-12 h-12 mx-auto" />
+              </div>
+              <p className="text-gray-500">
+                No reservations found for this period
+              </p>
+            </div>
+          )}
         </div>
       </div>
     );

@@ -14,6 +14,10 @@ import {
   FiPhone,
   FiCreditCard,
   FiClock,
+  FiSun,
+  FiCalendar as FiCalendarIcon,
+  FiArrowRight,
+  FiCheckCircle,
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -90,15 +94,28 @@ function ReservationCard({
     ? `${reservation?.userId?.firstName || ""} ${reservation?.userId?.lastName || ""}`
     : "—";
 
+  const isToday = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate.getTime() === today.getTime();
+  };
+
+  const isCheckInToday = isToday(reservation.checkIn);
+  const isCheckOutToday = isToday(reservation.checkOut);
+
   return (
     <div
-      className="
-      rounded-xl border border-gray-200 
+      className={`
+      rounded-xl border 
       bg-white
       p-4 flex items-start gap-4
       shadow-sm hover:shadow-md transition-all duration-300
       hover:-translate-y-0.5
-    "
+      ${isCheckInToday ? "border-l-4 border-l-green-500" : ""}
+      ${isCheckOutToday ? "border-r-4 border-r-orange-500" : ""}
+    `}
     >
       <input
         type="checkbox"
@@ -112,8 +129,20 @@ function ReservationCard({
 
       <div className="flex-1 min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-          <div className="text-sm font-semibold text-gray-900 truncate">
-            #{reservation.reservationNumber}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-sm font-semibold text-gray-900 truncate">
+              #{reservation.reservationNumber}
+            </div>
+            {isCheckInToday && (
+              <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                <FiSun className="w-3 h-3" /> Check-in Today
+              </span>
+            )}
+            {isCheckOutToday && (
+              <span className="bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                <FiArrowRight className="w-3 h-3" /> Check-out Today
+              </span>
+            )}
           </div>
           <div className="text-xs text-gray-600 font-medium">
             Assisted by: {assistedByName}
@@ -243,6 +272,7 @@ export default function Reservations() {
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all"); // all, checkin_today, checkout_today, upcoming, past
   const [modal, setModal] = useState({ open: false, reservation: null });
   const [deleteModal, setDeleteModal] = useState({
     open: false,
@@ -264,11 +294,59 @@ export default function Reservations() {
     );
   }, [fetchReservations]);
 
+  // Helper function to check if a date is today
+  const isToday = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate.getTime() === today.getTime();
+  };
+
+  // Helper function to check if a date is upcoming (after today)
+  const isUpcoming = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate > today;
+  };
+
+  // Helper function to check if a date is past (before today)
+  const isPast = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate < today;
+  };
+
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return reservations.filter((r) => {
+      // Status filter
       const st = normalizeStatus(r.status);
       if (statusFilter !== "all" && st !== statusFilter) return false;
+
+      // Date filter
+      if (dateFilter !== "all") {
+        const isCheckInToday = isToday(r.checkIn);
+        const isCheckOutToday = isToday(r.checkOut);
+        const isCheckInUpcoming = isUpcoming(r.checkIn);
+        const isCheckOutPast = isPast(r.checkOut);
+
+        if (dateFilter === "checkin_today") {
+          if (!isCheckInToday) return false;
+        } else if (dateFilter === "checkout_today") {
+          if (!isCheckOutToday) return false;
+        } else if (dateFilter === "upcoming") {
+          if (!isCheckInUpcoming) return false;
+        } else if (dateFilter === "past") {
+          if (!isCheckOutPast) return false;
+        }
+      }
+
+      // Search filter
       if (!s) return true;
 
       const guestName = `${r?.guestId?.firstName || ""} ${
@@ -284,7 +362,7 @@ export default function Reservations() {
         st.includes(s)
       );
     });
-  }, [reservations, q, statusFilter]);
+  }, [reservations, q, statusFilter, dateFilter]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -388,6 +466,14 @@ export default function Reservations() {
     navigate("/available-today");
   };
 
+  // Get counts for date filters
+  const checkInTodayCount = reservations.filter((r) =>
+    isToday(r.checkIn),
+  ).length;
+  const checkOutTodayCount = reservations.filter((r) =>
+    isToday(r.checkOut),
+  ).length;
+
   return (
     <>
       <Helmet>
@@ -488,6 +574,87 @@ export default function Reservations() {
           </div>
         </div>
 
+        {/* Date Filter Quick Stats */}
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={() =>
+              setDateFilter(
+                dateFilter === "checkin_today" ? "all" : "checkin_today",
+              )
+            }
+            className={`
+              rounded-xl border p-4 text-left transition-all duration-200
+              hover:shadow-md hover:-translate-y-0.5
+              ${
+                dateFilter === "checkin_today"
+                  ? "border-green-500 bg-green-50 shadow-md"
+                  : "border-gray-200 bg-white hover:border-green-300"
+              }
+            `}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-green-600 mb-1">
+                  <FiSun className="w-5 h-5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide">
+                    Check-in Today
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {checkInTodayCount}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Guests arriving today
+                </div>
+              </div>
+              {dateFilter === "checkin_today" && (
+                <div className="text-green-600">
+                  <FiCheckCircle className="w-6 h-6" />
+                </div>
+              )}
+            </div>
+          </button>
+
+          <button
+            onClick={() =>
+              setDateFilter(
+                dateFilter === "checkout_today" ? "all" : "checkout_today",
+              )
+            }
+            className={`
+              rounded-xl border p-4 text-left transition-all duration-200
+              hover:shadow-md hover:-translate-y-0.5
+              ${
+                dateFilter === "checkout_today"
+                  ? "border-orange-500 bg-orange-50 shadow-md"
+                  : "border-gray-200 bg-white hover:border-orange-300"
+              }
+            `}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-orange-600 mb-1">
+                  <FiArrowRight className="w-5 h-5" />
+                  <span className="text-xs font-semibold uppercase tracking-wide">
+                    Check-out Today
+                  </span>
+                </div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {checkOutTodayCount}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Guests departing today
+                </div>
+              </div>
+              {dateFilter === "checkout_today" && (
+                <div className="text-orange-600">
+                  <FiCheckCircle className="w-6 h-6" />
+                </div>
+              )}
+            </div>
+          </button>
+        </div>
+
         {/* Search + Filter */}
         <div
           className="
@@ -555,6 +722,24 @@ export default function Reservations() {
                 <option value="expired">Expired</option>
                 <option value="no_show">No Show</option>
               </select>
+
+              {/* Clear filter button */}
+              {dateFilter !== "all" && (
+                <button
+                  onClick={() => setDateFilter("all")}
+                  className="
+                    h-11 px-4 rounded-xl 
+                    border border-gray-200 
+                    bg-white
+                    hover:bg-gray-50
+                    text-sm font-medium text-gray-600
+                    transition-all duration-200
+                    hover:shadow-md
+                  "
+                >
+                  Clear Filter
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -639,6 +824,17 @@ export default function Reservations() {
               <div className="text-sm font-semibold text-gray-900">
                 Reservations ({total})
               </div>
+              {dateFilter !== "all" && (
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                  {dateFilter === "checkin_today"
+                    ? "📅 Check-in Today"
+                    : dateFilter === "checkout_today"
+                      ? "📅 Check-out Today"
+                      : dateFilter === "upcoming"
+                        ? "📅 Upcoming"
+                        : "📅 Past"}
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -723,15 +919,19 @@ export default function Reservations() {
                   const assistedByName = r?.userId
                     ? `${r?.userId?.firstName || ""} ${r?.userId?.lastName || ""}`
                     : "—";
+                  const isCheckInToday = isToday(r.checkIn);
+                  const isCheckOutToday = isToday(r.checkOut);
 
                   return (
                     <tr
                       key={r._id}
-                      className="
+                      className={`
                         border-b border-gray-100 last:border-b-0
                         hover:bg-gray-50
                         transition-colors duration-150
-                      "
+                        ${isCheckInToday ? "bg-green-50/30" : ""}
+                        ${isCheckOutToday ? "bg-orange-50/30" : ""}
+                      `}
                     >
                       {isAdmin && (
                         <td className="px-6 py-4">
@@ -750,6 +950,16 @@ export default function Reservations() {
                       <td className="px-6 py-4">
                         <div className="font-semibold text-gray-900">
                           #{r.reservationNumber}
+                          {isCheckInToday && (
+                            <span className="ml-2 inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
+                              <FiSun className="w-3 h-3" />
+                            </span>
+                          )}
+                          {isCheckOutToday && (
+                            <span className="ml-2 inline-flex items-center gap-1 bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full">
+                              <FiArrowRight className="w-3 h-3" />
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -770,7 +980,7 @@ export default function Reservations() {
                       </td>
 
                       <td className="px-6 py-4">
-                        <div className="text-gray-700">
+                        <div className="text-gray-700 whitespace-nowrap">
                           {new Date(r.checkIn).toLocaleDateString()} -{" "}
                           {new Date(r.checkOut).toLocaleDateString()}
                         </div>
@@ -978,21 +1188,7 @@ export default function Reservations() {
         )}
 
         {/* Loader overlay */}
-        {loading && (
-          <div
-            className="
-            absolute inset-0 z-50 flex items-center justify-center 
-            bg-white/90 backdrop-blur-sm
-          "
-          >
-            <Loader
-              size={60}
-              variant="primary"
-              showText={true}
-              text="Loading reservations..."
-            />
-          </div>
-        )}
+        {loading && <Loader />}
       </div>
     </>
   );

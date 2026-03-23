@@ -59,23 +59,40 @@ export const useReportStore = create((set, get) => ({
   fetchReservationsReport: async (filters = {}) => {
     set({ loading: true, error: null });
     try {
-      const currentFilters = { ...get().filters, ...filters };
-      const queryParams = buildQueryParams(currentFilters);
+      const params = new URLSearchParams();
+      if (filters.period) params.append("period", filters.period);
+      if (filters.startDate) params.append("startDate", filters.startDate);
+      if (filters.endDate) params.append("endDate", filters.endDate);
+      if (filters.status) params.append("status", filters.status);
 
-      const res = await fetch(`${API}/reports/reservations?${queryParams}`);
+      const res = await fetch(
+        `${API}/reports/reservations?${params.toString()}`,
+      );
       const data = await res.json();
 
       if (!res.ok)
-        throw new Error(data?.message || "Failed to fetch reservations report");
+        throw new Error(data.message || "Failed to fetch reservations report");
+
+      // Ensure all fields exist with default values
+      const reportData = {
+        ...data,
+        newReservations: data.newReservations ?? 0,
+        averageNights: data.averageNights ?? 0,
+        cancellationRate: data.cancellationRate ?? 0,
+        reservations: data.reservations ?? [],
+      };
 
       set((state) => ({
-        reports: { ...state.reports, reservations: data },
+        reports: {
+          ...state.reports,
+          reservations: reportData,
+        },
         loading: false,
       }));
 
-      return data;
+      return reportData;
     } catch (err) {
-      set({ loading: false, error: err.message });
+      set({ error: err.message, loading: false });
       throw err;
     }
   },
