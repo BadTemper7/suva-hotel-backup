@@ -420,27 +420,49 @@ export default function ReservationProcess() {
   }, [discountImagePreview, receiptImagePreview]);
 
   // Check if guest is valid (either existing or new with all fields)
+  // Replace the isGuestValid useMemo with this improved version
   const isGuestValid = useMemo(() => {
-    // Case 1: Existing guest selected
-    if (reservationFormData.guestId && guestExists) {
-      return true;
+    // Case 1: Existing guest selected AND has valid ID
+    if (reservationFormData.guestId && guestExists && originalGuestData) {
+      // Verify that the guest data matches what's in the form
+      const hasValidGuestData =
+        originalGuestData.firstName === guest.firstName &&
+        originalGuestData.lastName === guest.lastName &&
+        originalGuestData.contactNumber === guest.contactNumber &&
+        originalGuestData.email === guest.email;
+
+      return hasValidGuestData;
     }
 
     // Case 2: Creating new guest with all fields valid
     if (isCreatingNewGuest) {
+      const hasFirstName = guest.firstName?.trim();
+      const hasLastName = guest.lastName?.trim();
+      const hasContactNumber = guest.contactNumber?.trim();
+      const isValidFirstName = validateName(guest.firstName);
+      const isValidLastName = validateName(guest.lastName);
+      const isValidPhone = validatePhone(guest.contactNumber);
+      const isValidEmail = !guest.email || validateEmail(guest.email);
+
       return (
-        guest.firstName?.trim() &&
-        guest.lastName?.trim() &&
-        guest.contactNumber?.trim() &&
-        validateName(guest.firstName) &&
-        validateName(guest.lastName) &&
-        validatePhone(guest.contactNumber) &&
-        (!guest.email || validateEmail(guest.email))
+        hasFirstName &&
+        hasLastName &&
+        hasContactNumber &&
+        isValidFirstName &&
+        isValidLastName &&
+        isValidPhone &&
+        isValidEmail
       );
     }
 
     return false;
-  }, [reservationFormData.guestId, guestExists, isCreatingNewGuest, guest]);
+  }, [
+    reservationFormData.guestId,
+    guestExists,
+    originalGuestData,
+    isCreatingNewGuest,
+    guest,
+  ]);
 
   const searchGuestByEmail = async (searchTerm) => {
     if (!searchTerm || searchTerm.trim() === "") {
@@ -471,6 +493,7 @@ export default function ReservationProcess() {
   };
 
   const handleEmailSelect = (selectedGuest) => {
+    // Populate guest form with selected guest data
     setGuest({
       firstName: selectedGuest.firstName || "",
       lastName: selectedGuest.lastName || "",
@@ -489,6 +512,7 @@ export default function ReservationProcess() {
     setEmailInput(selectedGuest.email);
     setEmailSuggestions([]);
     setShowEmailDropdown(false);
+    setFieldError("email", "");
 
     toast.success(
       `Guest found: ${selectedGuest.firstName} ${selectedGuest.lastName}`,
@@ -505,7 +529,7 @@ export default function ReservationProcess() {
     }));
     setEmailSuggestions([]);
     setShowEmailDropdown(false);
-    toast.success("Now fill in the guest details");
+    // No toast message since it's automatic
   };
 
   // Calculations - using nights instead of hours
@@ -763,14 +787,20 @@ export default function ReservationProcess() {
   const validateStep3 = () => {
     const errors = {};
 
-    // For existing guest: just need guestId
-    if (guestExists && reservationFormData.guestId) {
-      setErrors({});
-      return true;
+    // Check if email is empty
+    if (!emailInput || emailInput.trim() === "") {
+      errors.email = "Email is required. Please enter an email address.";
     }
 
-    // For new guest (either explicitly creating or just filling fields)
-    if (!reservationFormData.guestId) {
+    // For existing guest: need guestId and the email should match
+    if (guestExists && reservationFormData.guestId) {
+      if (originalGuestData && originalGuestData.email !== emailInput) {
+        errors.email = "Email mismatch. Please select the correct guest.";
+      }
+    }
+    // For new guest (automatic when email is entered and no existing guest selected)
+    else if (emailInput && emailInput.trim() !== "" && !guestExists) {
+      // This is the new guest flow - check all fields
       if (!guest.firstName.trim()) {
         errors.firstName = "First name is required.";
       } else if (!validateName(guest.firstName)) {
@@ -1899,10 +1929,10 @@ export default function ReservationProcess() {
                         onChange={(e) => {
                           const value = e.target.value;
                           setEmailInput(value);
-                          setGuest((g) => ({ ...g, email: value }));
-                          setFieldError("email", "");
 
-                          if (!value) {
+                          // If the email is cleared, reset all guest selection state
+                          if (!value || value.trim() === "") {
+                            // Clear guest selection
                             setGuestExists(false);
                             setIsCreatingNewGuest(false);
                             setOriginalGuestData(null);
@@ -1912,21 +1942,40 @@ export default function ReservationProcess() {
                               ...prev,
                               guestId: "",
                             }));
+                            // Clear guest form fields
+                            setGuest({
+                              firstName: "",
+                              lastName: "",
+                              contactNumber: "",
+                              email: "",
+                            });
+                            setFieldError("email", "");
                           } else {
-                            // If email changes and we had a selected guest, clear it
-                            if (guestExists) {
+                            // Only update email if we have a value
+                            setGuest((g) => ({ ...g, email: value }));
+                            setFieldError("email", "");
+
+                            // If we were previously showing an existing guest and user starts typing,
+                            // reset the selection state
+                            if (guestExists || originalGuestData) {
                               setGuestExists(false);
                               setOriginalGuestData(null);
                               setReservationFormData((prev) => ({
                                 ...prev,
                                 guestId: "",
                               }));
+                              // Clear other guest fields when email changes
+                              setGuest({
+                                firstName: "",
+                                lastName: "",
+                                contactNumber: "",
+                                email: value,
+                              });
                             }
 
-                            // Don't automatically set isCreatingNewGuest, let user click the button
-                            // But if they start typing after clearing, reset creating state
-                            if (isCreatingNewGuest) {
-                              setIsCreatingNewGuest(false);
+                            // Automatically set to creating new guest mode when typing
+                            if (!guestExists && !originalGuestData) {
+                              setIsCreatingNewGuest(true);
                             }
 
                             const timer = setTimeout(() => {
@@ -1940,130 +1989,100 @@ export default function ReservationProcess() {
                             emailInput &&
                             emailInput.trim() &&
                             !showEmailDropdown &&
-                            !guestExists &&
-                            !isCreatingNewGuest
+                            !guestExists
                           ) {
                             searchGuestByEmail(emailInput);
                           }
                         }}
                         onBlur={() => {
-                          setTimeout(() => setShowEmailDropdown(false), 300);
+                          setTimeout(() => {
+                            setShowEmailDropdown(false);
+                          }, 300);
                         }}
                         className={`
-                          mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-                          focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                          transition-all duration-200 bg-white
-                          ${
-                            errors.email
-                              ? "border-red-300 bg-red-50"
-                              : guestExists
-                                ? "border-[#00af00] bg-[#00af00]/5"
-                                : "border-gray-200"
-                          }
-                        `}
+              mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+              focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+              transition-all duration-200 bg-white
+              ${
+                errors.email
+                  ? "border-red-300 bg-red-50"
+                  : guestExists
+                    ? "border-[#00af00] bg-[#00af00]/5"
+                    : "border-gray-200"
+              }
+            `}
                         placeholder="Type email to search existing guests..."
                       />
 
                       {/* Email Suggestions Dropdown */}
-                      {showEmailDropdown && (
-                        <div className="absolute z-20 w-full mt-1 rounded-xl border border-gray-200 bg-white shadow-lg max-h-64 overflow-y-auto">
-                          {emailSuggestions.length > 0 && (
-                            <>
-                              <div className="p-3 border-b border-gray-100">
-                                <div className="text-xs font-medium text-gray-700">
-                                  Select existing guest:
-                                </div>
-                                <div className="text-xs text-gray-500 mt-0.5">
-                                  {emailSuggestions.length} suggestion(s) found
-                                </div>
+                      {showEmailDropdown &&
+                        emailInput &&
+                        emailInput.trim() !== "" &&
+                        emailSuggestions.length > 0 && (
+                          <div className="absolute z-20 w-full mt-1 rounded-xl border border-gray-200 bg-white shadow-lg max-h-64 overflow-y-auto">
+                            <div className="p-3 border-b border-gray-100 bg-gray-50">
+                              <div className="text-xs font-medium text-gray-700">
+                                Select existing guest:
                               </div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {emailSuggestions.length} suggestion(s) found
+                              </div>
+                            </div>
 
-                              {emailSuggestions.map((guestItem) => (
-                                <button
-                                  key={guestItem._id}
-                                  type="button"
-                                  onClick={() => handleEmailSelect(guestItem)}
-                                  className="
-                                    w-full text-left p-3 hover:bg-gray-50 
-                                    border-b border-gray-100 last:border-b-0 transition-colors
-                                  "
-                                  onMouseDown={(e) => e.preventDefault()}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="text-sm font-medium text-gray-900 truncate">
-                                        {guestItem.email}
-                                      </div>
-                                      <div className="text-xs text-gray-600 mt-0.5 truncate">
-                                        {guestItem.firstName}{" "}
-                                        {guestItem.lastName}
-                                        {guestItem.contactNumber && (
-                                          <span className="ml-2">
-                                            • {guestItem.contactNumber}
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <FiCheckCircle className="text-[#00af00] ml-2 flex-shrink-0" />
-                                  </div>
-                                </button>
-                              ))}
-                            </>
-                          )}
-
-                          {/* Always show create new guest option when email is entered */}
-                          {emailInput && emailInput.trim() !== "" && (
-                            <div
-                              className={`p-3 ${emailSuggestions.length > 0 ? "border-t border-gray-100" : ""} bg-gray-50`}
-                            >
+                            {emailSuggestions.map((guestItem) => (
                               <button
+                                key={guestItem._id}
                                 type="button"
                                 onClick={() => {
-                                  handleCreateNewGuest();
-                                  setGuest((prev) => ({
-                                    ...prev,
-                                    email: emailInput,
-                                  }));
-                                  setEmailSuggestions([]);
-                                  setShowEmailDropdown(false);
+                                  handleEmailSelect(guestItem);
+                                  setFieldError("email", "");
                                 }}
-                                className="w-full text-left text-sm font-medium text-[#0c2bfc] hover:text-[#0a24d6]"
+                                className="
+                      w-full text-left p-3 hover:bg-gray-50 
+                      border-b border-gray-100 last:border-b-0 transition-colors
+                    "
+                                onMouseDown={(e) => e.preventDefault()}
                               >
-                                <div className="flex items-center">
-                                  <FiPlus className="mr-2" />
-                                  Create new guest with "{emailInput}"
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-gray-900 truncate">
+                                      {guestItem.firstName} {guestItem.lastName}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-0.5 truncate">
+                                      {guestItem.email}
+                                      {guestItem.contactNumber && (
+                                        <span className="ml-2">
+                                          • {guestItem.contactNumber}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <FiCheckCircle className="text-[#00af00] ml-2 flex-shrink-0" />
                                 </div>
                               </button>
-                            </div>
-                          )}
-
-                          {/* Show message if no results and email is entered */}
-                          {emailSuggestions.length === 0 && emailInput && (
-                            <div className="p-3 text-sm text-gray-500">
-                              No existing guests found with this email.
-                            </div>
-                          )}
-                        </div>
-                      )}
+                            ))}
+                          </div>
+                        )}
                     </div>
                     <FieldError text={errors.email} />
                   </div>
 
-                  {/* Show appropriate message based on guest selection state */}
-                  {!guestExists && !isCreatingNewGuest && !emailInput && (
+                  {/* Show message when no email entered */}
+                  {!emailInput && (
                     <div className="sm:col-span-2 text-xs text-amber-600 bg-amber-50 p-2 rounded-lg">
-                      Please enter an email to search for existing guests or
-                      create a new one.
+                      ⚠️ Please enter an email to get started
                     </div>
                   )}
 
-                  {isCreatingNewGuest && (
+                  {/* Show creating new guest message */}
+                  {emailInput && emailInput.trim() !== "" && !guestExists && (
                     <div className="sm:col-span-2 text-xs text-[#0c2bfc] bg-[#0c2bfc]/5 p-2 rounded-lg">
-                      Creating new guest. Please fill in all required fields
+                      ✚ Creating new guest. Please fill in all required fields
                       below.
                     </div>
                   )}
 
+                  {/* First Name */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       First Name *
@@ -2073,8 +2092,11 @@ export default function ReservationProcess() {
                       onChange={(e) => {
                         if (!guestExists) {
                           const value = e.target.value;
-                          setGuest((g) => ({ ...g, firstName: value }));
-                          setFieldError("firstName", "");
+                          // Only allow letters and spaces
+                          if (/^[A-Za-z\s]*$/.test(value)) {
+                            setGuest((g) => ({ ...g, firstName: value }));
+                            setFieldError("firstName", "");
+                          }
                         }
                       }}
                       onBlur={() => {
@@ -2087,21 +2109,23 @@ export default function ReservationProcess() {
                       }}
                       readOnly={guestExists}
                       className={`
-      mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-      focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-      transition-all duration-200 bg-white
-      ${
-        errors.firstName
-          ? "border-red-300 bg-red-50"
-          : guestExists
-            ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
-            : "border-gray-200"
-      }
-    `}
+            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+            transition-all duration-200 bg-white
+            ${
+              errors.firstName
+                ? "border-red-300 bg-red-50"
+                : guestExists
+                  ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
+                  : "border-gray-200"
+            }
+          `}
                       placeholder="John (letters and spaces only)"
                     />
                     <FieldError text={errors.firstName} />
                   </div>
+
+                  {/* Last Name */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Last Name *
@@ -2111,8 +2135,11 @@ export default function ReservationProcess() {
                       onChange={(e) => {
                         if (!guestExists) {
                           const value = e.target.value;
-                          setGuest((g) => ({ ...g, lastName: value }));
-                          setFieldError("lastName", "");
+                          // Only allow letters and spaces
+                          if (/^[A-Za-z\s]*$/.test(value)) {
+                            setGuest((g) => ({ ...g, lastName: value }));
+                            setFieldError("lastName", "");
+                          }
                         }
                       }}
                       onBlur={() => {
@@ -2125,22 +2152,23 @@ export default function ReservationProcess() {
                       }}
                       readOnly={guestExists}
                       className={`
-      mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-      focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-      transition-all duration-200 bg-white
-      ${
-        errors.lastName
-          ? "border-red-300 bg-red-50"
-          : guestExists
-            ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
-            : "border-gray-200"
-      }
-    `}
+            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+            transition-all duration-200 bg-white
+            ${
+              errors.lastName
+                ? "border-red-300 bg-red-50"
+                : guestExists
+                  ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
+                  : "border-gray-200"
+            }
+          `}
                       placeholder="Doe (letters and spaces only)"
                     />
                     <FieldError text={errors.lastName} />
                   </div>
-                  {/* Contact Number */}
+
+                  {/* Contact Number - Numbers Only */}
                   <div className="sm:col-span-2">
                     <label className="text-sm font-medium text-gray-700">
                       Contact Number *
@@ -2149,43 +2177,54 @@ export default function ReservationProcess() {
                       value={guest.contactNumber}
                       onChange={(e) => {
                         if (!guestExists) {
-                          setGuest((g) => ({
-                            ...g,
-                            contactNumber: e.target.value,
-                          }));
-                          setFieldError("contactNumber", "");
+                          const value = e.target.value;
+                          // Only allow numbers
+                          if (/^\d*$/.test(value)) {
+                            setGuest((g) => ({
+                              ...g,
+                              contactNumber: value,
+                            }));
+                            setFieldError("contactNumber", "");
+                          }
+                        }
+                      }}
+                      onBlur={() => {
+                        if (
+                          guest.contactNumber &&
+                          !validatePhone(guest.contactNumber)
+                        ) {
+                          setFieldError(
+                            "contactNumber",
+                            "Must start with 09 and be 11 digits (numbers only)",
+                          );
                         }
                       }}
                       readOnly={guestExists}
                       className={`
-                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                        transition-all duration-200 bg-white
-                        ${
-                          errors.contactNumber
-                            ? "border-red-300 bg-red-50"
-                            : guestExists
-                              ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
-                              : "border-gray-200"
-                        }
-                      `}
-                      placeholder="09123456789"
+            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+            transition-all duration-200 bg-white
+            ${
+              errors.contactNumber
+                ? "border-red-300 bg-red-50"
+                : guestExists
+                  ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
+                  : "border-gray-200"
+            }
+          `}
+                      placeholder="09123456789 (numbers only)"
+                      maxLength={11}
                     />
                     <FieldError text={errors.contactNumber} />
                     <div className="mt-1 text-xs text-gray-500">
-                      Must start with 09 and be 11 digits.
+                      Must start with 09 and be 11 digits (numbers only)
                     </div>
                   </div>
-                  {/* Guest Status Display */}
+
+                  {/* Guest Found Message */}
                   {guestExists && originalGuestData && (
                     <div className="sm:col-span-2 mt-4">
-                      <div
-                        className="
-                        rounded-xl border border-[#00af00]/20 
-                        bg-[#00af00]/5
-                        p-4
-                      "
-                      >
+                      <div className="rounded-xl border border-[#00af00]/20 bg-[#00af00]/5 p-4">
                         <div className="flex items-start gap-3">
                           <div className="mt-0.5">
                             <FiCheckCircle className="text-[#00af00]" />
@@ -2205,34 +2244,6 @@ export default function ReservationProcess() {
                             </div>
                             <div className="text-xs text-gray-600 mt-2">
                               Guest details are pre-filled from our records.
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {isCreatingNewGuest && (
-                    <div className="sm:col-span-2 mt-4">
-                      <div
-                        className="
-                        rounded-xl border border-gray-200 
-                        bg-gray-50
-                        p-4
-                      "
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5">
-                            <FiPlus className="text-[#0c2bfc]" />
-                          </div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              New Guest
-                            </div>
-                            <div className="text-sm text-gray-700 mt-1">
-                              Please fill in the guest details below.
-                            </div>
-                            <div className="text-xs text-gray-600 mt-2">
-                              All fields are required for new guests.
                             </div>
                           </div>
                         </div>
@@ -3036,14 +3047,14 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
               onClick={handleStep3Next}
               disabled={searchLoading || !isGuestValid}
               className={`
-                h-11 px-5 rounded-xl text-white text-sm font-medium 
-                inline-flex items-center gap-2 transition-all duration-200
-                ${
-                  searchLoading || !isGuestValid
-                    ? "bg-[#0c2bfc]/50 cursor-not-allowed"
-                    : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-lg hover:-translate-y-0.5"
-                }
-              `}
+      h-11 px-5 rounded-xl text-white text-sm font-medium 
+      inline-flex items-center gap-2 transition-all duration-200
+      ${
+        searchLoading || !isGuestValid
+          ? "bg-[#0c2bfc]/50 cursor-not-allowed"
+          : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-lg hover:-translate-y-0.5"
+      }
+    `}
             >
               Next
               <FiChevronRight />

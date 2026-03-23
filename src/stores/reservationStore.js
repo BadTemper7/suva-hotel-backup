@@ -635,7 +635,6 @@ export const useReservationStore = create((set, get) => ({
           );
           const guestResponse = await safeJson(resGuest);
           guestId = guestResponse.guest?._id || guestResponse._id;
-          console.log("Guest found/created:", guestId);
         } catch (guestErr) {
           console.warn(
             "Could not find/create guest by email, using default:",
