@@ -59,7 +59,7 @@ function ImageCell({ images, roomNo, onPreview }) {
 }
 
 function RoomCard({ roomData, onEdit, onView, onPreview, selected, onSelect }) {
-  const { roomId, amenities } = roomData;
+  const { roomId, addOns } = roomData;
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -137,14 +137,12 @@ function RoomCard({ roomData, onEdit, onView, onPreview, selected, onSelect }) {
           </div>
         </div>
 
-        {/* Amenities summary */}
+        {/* Add-Ons summary - Changed from Amenities */}
         <div className="mt-4">
-          <div className="text-xs font-medium text-gray-700 mb-1">
-            Amenities
-          </div>
-          {amenities && amenities.length > 0 ? (
+          <div className="text-xs font-medium text-gray-700 mb-1">Add-Ons</div>
+          {addOns && addOns.length > 0 ? (
             <div className="flex flex-wrap gap-1">
-              {amenities.slice(0, 3).map((amenity, idx) => (
+              {addOns.slice(0, 3).map((addOn, idx) => (
                 <span
                   key={idx}
                   className="
@@ -153,18 +151,18 @@ function RoomCard({ roomData, onEdit, onView, onPreview, selected, onSelect }) {
                     border border-gray-200 text-gray-700
                   "
                 >
-                  {amenity.amenityId?.name || amenity.amenityId}
-                  {amenity.quantity > 1 && ` (×${amenity.quantity})`}
+                  {addOn.addOnId?.name || addOn.addOnId}
+                  {addOn.quantity > 1 && ` (×${addOn.quantity})`}
                 </span>
               ))}
-              {amenities.length > 3 && (
+              {addOns.length > 3 && (
                 <span className="px-2 py-1 rounded-full text-xs bg-gray-50 border border-gray-200 text-gray-500">
-                  +{amenities.length - 3} more
+                  +{addOns.length - 3} more
                 </span>
               )}
             </div>
           ) : (
-            <div className="text-xs text-gray-400 italic">No amenities</div>
+            <div className="text-xs text-gray-400 italic">No add-ons</div>
           )}
         </div>
       </div>
@@ -344,7 +342,7 @@ export default function RoomReservation() {
         await updateReservationRoom({
           reservationId: modal.reservationId,
           reservationRoomId: payload.reservationRoomId,
-          amenities: payload.amenities,
+          addOns: payload.addOns, // Changed from amenities to addOns
         });
         toast.success("Room updated successfully");
       }
@@ -705,7 +703,7 @@ export default function RoomReservation() {
                     Rate
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                    Amenities
+                    Add-Ons
                   </th>
                   {isAdmin && (
                     <th className="text-right font-semibold text-gray-700 px-6 py-4">
@@ -717,7 +715,7 @@ export default function RoomReservation() {
 
               <tbody>
                 {paged.map((roomData) => {
-                  const { roomId, amenities } = roomData;
+                  const { roomId, addOns } = roomData;
 
                   return (
                     <tr
@@ -775,9 +773,9 @@ export default function RoomReservation() {
                       </td>
 
                       <td className="px-6 py-4">
-                        {amenities && amenities.length > 0 ? (
+                        {addOns && addOns.length > 0 ? (
                           <div className="flex flex-wrap gap-1 max-w-xs">
-                            {amenities.slice(0, 2).map((amenity, idx) => (
+                            {addOns.slice(0, 2).map((addOn, idx) => (
                               <span
                                 key={idx}
                                 className="
@@ -786,12 +784,11 @@ export default function RoomReservation() {
                                   border border-gray-200 text-gray-700
                                 "
                               >
-                                {amenity.amenityId?.name || amenity.amenityId}
-                                {amenity.quantity > 1 &&
-                                  ` (×${amenity.quantity})`}
+                                {addOn.addOnId?.name || addOn.addOnId}
+                                {addOn.quantity > 1 && ` (×${addOn.quantity})`}
                               </span>
                             ))}
-                            {amenities.length > 2 && (
+                            {addOns.length > 2 && (
                               <span
                                 className="
                                   px-2 py-1 rounded-full text-xs 
@@ -799,7 +796,7 @@ export default function RoomReservation() {
                                   border border-gray-200 text-gray-500
                                 "
                               >
-                                +{amenities.length - 2} more
+                                +{addOns.length - 2} more
                               </span>
                             )}
                           </div>

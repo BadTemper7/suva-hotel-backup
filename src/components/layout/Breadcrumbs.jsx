@@ -7,6 +7,7 @@ const labelMap = {
   rooms: "Rooms",
   "room-types": "Room Types",
   amenities: "Amenities",
+  "add-ons": "Add-Ons",
   reservations: "Reservations",
   guests: "Guests",
   billing: "Billing",
@@ -34,7 +35,9 @@ export default function Breadcrumbs() {
   const actualSegments = segments[0] === "admin" ? segments.slice(1) : segments;
 
   // Check for parent-child relationships
-  const isUnderRooms = ["room-types", "amenities"].includes(actualSegments[0]);
+  const isUnderRooms = ["room-types", "amenities", "add-ons"].includes(
+    actualSegments[0],
+  );
   const isUnderReservations = [
     "available-today",
     "reservation-process",
@@ -56,6 +59,11 @@ export default function Breadcrumbs() {
     actualSegments[0] === "reservations" &&
     actualSegments[1] !== undefined &&
     actualSegments[2] === "amenities";
+  const isAddOnReservation =
+    actualSegments.length >= 3 &&
+    actualSegments[0] === "reservations" &&
+    actualSegments[1] !== undefined &&
+    actualSegments[2] === "add-ons";
 
   let crumbs = [];
 
@@ -89,6 +97,19 @@ export default function Breadcrumbs() {
       {
         to: `/reservations/${reservationId}/amenities`,
         label: "Manage Amenities",
+      },
+    );
+  } else if (isAddOnReservation) {
+    const reservationId = actualSegments[1];
+    crumbs.push(
+      { to: "/reservations", label: "Reservations" },
+      {
+        to: `/reservations/${reservationId}`,
+        label: `Reservation #${reservationId.slice(-6)}`,
+      },
+      {
+        to: `/reservations/${reservationId}/add-ons`,
+        label: "Manage Add-Ons",
       },
     );
   }
@@ -183,7 +204,7 @@ export default function Breadcrumbs() {
       </div>
 
       {/* Breadcrumb trail */}
-      <div className="flex items-center gap-2 text-sm min-w-0">
+      <div className="flex items-center gap-2 text-sm min-w-0 flex-wrap">
         {crumbs.map((c, idx) => {
           const isLast = idx === crumbs.length - 1;
 

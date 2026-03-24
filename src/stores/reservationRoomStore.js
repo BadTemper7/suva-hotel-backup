@@ -1,3 +1,4 @@
+// src/stores/reservationRoomStore.js
 import { create } from "zustand";
 
 const API =
@@ -67,18 +68,18 @@ export const useReservationRoomStore = create((set, get) => ({
     }
   },
 
-  // Update reservation rooms and amenities
+  // Update reservation rooms and add-ons
   updateReservationRoom: async ({
     reservationId,
     reservationRoomId,
-    amenities,
+    addOns,
   }) => {
     set({ loading: true, error: null });
     try {
       const res = await fetch(`${API}/reservation-rooms/${reservationRoomId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amenities }),
+        body: JSON.stringify({ addOns }),
       });
       const data = await safeJson(res);
 
@@ -103,28 +104,28 @@ export const useReservationRoomStore = create((set, get) => ({
           return { loading: false };
         }
 
-        // Map the new amenities while preserving the amenityId object data if available
-        const updatedAmenities = amenities.map((newAmenity) => {
-          // Try to find the existing amenity to get populated data
-          const existingAmenity = existingRoom.amenities?.find(
+        // Map the new add-ons while preserving the addOnId object data if available
+        const updatedAddOns = addOns.map((newAddOn) => {
+          // Try to find the existing add-on to get populated data
+          const existingAddOn = existingRoom.addOns?.find(
             (a) =>
-              a.amenityId?._id === newAmenity.amenityId ||
-              a.amenityId === newAmenity.amenityId,
+              a.addOnId?._id === newAddOn.addOnId ||
+              a.addOnId === newAddOn.addOnId,
           );
 
           if (
-            existingAmenity &&
-            existingAmenity.amenityId &&
-            typeof existingAmenity.amenityId === "object"
+            existingAddOn &&
+            existingAddOn.addOnId &&
+            typeof existingAddOn.addOnId === "object"
           ) {
-            // Preserve the populated amenity object
+            // Preserve the populated add-on object
             return {
-              amenityId: existingAmenity.amenityId, // Keep the populated object
-              quantity: newAmenity.quantity,
+              addOnId: existingAddOn.addOnId, // Keep the populated object
+              quantity: newAddOn.quantity,
             };
           } else {
             // No populated data found, just use the ID
-            return newAmenity;
+            return newAddOn;
           }
         });
 
@@ -135,7 +136,7 @@ export const useReservationRoomStore = create((set, get) => ({
               room._id === reservationRoomId
                 ? {
                     ...room,
-                    amenities: updatedAmenities,
+                    addOns: updatedAddOns,
                   }
                 : room,
             ) || [],
@@ -175,6 +176,7 @@ export const useReservationRoomStore = create((set, get) => ({
       throw err;
     }
   },
+
   deleteMultipleReservationRooms: async (reservationId, input) => {
     set({ loading: true, error: null });
     try {
@@ -243,6 +245,7 @@ export const useReservationRoomStore = create((set, get) => ({
       throw err;
     }
   },
+
   // Clear rooms
   clearRooms: () => set({ rooms: [], error: null }),
   clearError: () => set({ error: null }),

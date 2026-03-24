@@ -25,7 +25,7 @@ import { Helmet } from "react-helmet";
 
 import Loader from "../components/layout/Loader.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
-import { useAmenityStore } from "../stores/amenityStore.js";
+import { useAddOnStore } from "../stores/addOnStore.js";
 import { usePaymentStore } from "../stores/paymentStore.js";
 import { useGuestStore } from "../stores/guestStore.js";
 import NumberInput from "../components/ui/NumberInput.jsx";
@@ -304,8 +304,8 @@ export default function ReservationProcess() {
     fetchPaymentTypes,
     fetchDiscounts,
   } = usePaymentStore();
-  const amenities = useAmenityStore((s) => s.amenities);
-  const fetchAmenities = useAmenityStore((s) => s.fetchAmenities);
+  const addOns = useAddOnStore((s) => s.addOns);
+  const fetchAddOns = useAddOnStore((s) => s.fetchAddOns);
 
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
@@ -372,7 +372,7 @@ export default function ReservationProcess() {
     const loadData = async () => {
       try {
         await Promise.all([
-          fetchAmenities?.(),
+          fetchAddOns?.(),
           fetchPaymentOptions(),
           fetchPaymentTypes(),
           fetchDiscounts(),
@@ -385,7 +385,7 @@ export default function ReservationProcess() {
     };
     loadData();
   }, [
-    fetchAmenities,
+    fetchAddOns,
     fetchPaymentOptions,
     fetchPaymentTypes,
     fetchDiscounts,
@@ -394,8 +394,6 @@ export default function ReservationProcess() {
 
   // Auto-detect new guest creation when user starts filling fields
   useEffect(() => {
-    // If user starts filling guest fields and no existing guest is selected,
-    // automatically switch to new guest mode
     if (
       !guestExists &&
       !reservationFormData.guestId &&
@@ -419,22 +417,17 @@ export default function ReservationProcess() {
     };
   }, [discountImagePreview, receiptImagePreview]);
 
-  // Check if guest is valid (either existing or new with all fields)
-  // Replace the isGuestValid useMemo with this improved version
+  // Check if guest is valid
   const isGuestValid = useMemo(() => {
-    // Case 1: Existing guest selected AND has valid ID
     if (reservationFormData.guestId && guestExists && originalGuestData) {
-      // Verify that the guest data matches what's in the form
       const hasValidGuestData =
         originalGuestData.firstName === guest.firstName &&
         originalGuestData.lastName === guest.lastName &&
         originalGuestData.contactNumber === guest.contactNumber &&
         originalGuestData.email === guest.email;
-
       return hasValidGuestData;
     }
 
-    // Case 2: Creating new guest with all fields valid
     if (isCreatingNewGuest) {
       const hasFirstName = guest.firstName?.trim();
       const hasLastName = guest.lastName?.trim();
@@ -473,7 +466,6 @@ export default function ReservationProcess() {
 
     setSearchLoading(true);
     try {
-      // Use guests from store instead of fetching again
       const filtered = guests
         .filter(
           (g) =>
@@ -493,7 +485,6 @@ export default function ReservationProcess() {
   };
 
   const handleEmailSelect = (selectedGuest) => {
-    // Populate guest form with selected guest data
     setGuest({
       firstName: selectedGuest.firstName || "",
       lastName: selectedGuest.lastName || "",
@@ -525,14 +516,13 @@ export default function ReservationProcess() {
     setOriginalGuestData(null);
     setReservationFormData((prev) => ({
       ...prev,
-      guestId: "", // Clear guest ID for new guest
+      guestId: "",
     }));
     setEmailSuggestions([]);
     setShowEmailDropdown(false);
-    // No toast message since it's automatic
   };
 
-  // Calculations - using nights instead of hours
+  // Calculations
   const nights = useMemo(() => {
     if (!reservationFormData.checkIn || !reservationFormData.checkOut) return 0;
     const n = nightsBetween(
@@ -549,28 +539,25 @@ export default function ReservationProcess() {
       const roomSubtotal = roomRate * nights;
       const isCottage = room?.category === "cottage";
 
-      // Only calculate amenities for rooms (not cottages)
-      let amenitiesSubtotal = 0;
+      let addOnsSubtotal = 0;
       if (!isCottage) {
-        amenitiesSubtotal = roomRes.amenities.reduce((sum, amenity) => {
-          const amenityData = amenities.find(
-            (a) => a._id === amenity.amenityId,
-          );
-          return sum + (amenityData?.rate || 0) * amenity.quantity;
+        addOnsSubtotal = roomRes.addOns.reduce((sum, addOn) => {
+          const addOnData = addOns.find((a) => a._id === addOn.addOnId);
+          return sum + (addOnData?.rate || 0) * addOn.quantity;
         }, 0);
       }
 
       return {
         roomId: roomRes.roomId,
-        total: roomSubtotal + amenitiesSubtotal,
+        total: roomSubtotal + addOnsSubtotal,
         roomSubtotal,
-        amenitiesSubtotal,
+        addOnsSubtotal,
         roomRate,
         category: room?.category,
         isCottage,
       };
     });
-  }, [roomReservations, availableRooms, nights, amenities]);
+  }, [roomReservations, availableRooms, nights, addOns]);
 
   const totalAmount = useMemo(() => {
     return roomTotals.reduce((sum, room) => sum + room.total, 0);
@@ -787,20 +774,15 @@ export default function ReservationProcess() {
   const validateStep3 = () => {
     const errors = {};
 
-    // Check if email is empty
     if (!emailInput || emailInput.trim() === "") {
       errors.email = "Email is required. Please enter an email address.";
     }
 
-    // For existing guest: need guestId and the email should match
     if (guestExists && reservationFormData.guestId) {
       if (originalGuestData && originalGuestData.email !== emailInput) {
         errors.email = "Email mismatch. Please select the correct guest.";
       }
-    }
-    // For new guest (automatic when email is entered and no existing guest selected)
-    else if (emailInput && emailInput.trim() !== "" && !guestExists) {
-      // This is the new guest flow - check all fields
+    } else if (emailInput && emailInput.trim() !== "" && !guestExists) {
       if (!guest.firstName.trim()) {
         errors.firstName = "First name is required.";
       } else if (!validateName(guest.firstName)) {
@@ -857,7 +839,6 @@ export default function ReservationProcess() {
       errors.amountReceived = "Amount received must be at least amount paid.";
     }
 
-    // UPDATED: Receipt validation - either reference number OR image is required
     if (requiresReceipt) {
       if (!referenceNumber && !selectedReceiptImage) {
         errors.receipt =
@@ -923,7 +904,7 @@ export default function ReservationProcess() {
   const goNext = () => setStep((prev) => Math.min(4, prev + 1));
   const goBack = () => setStep((prev) => Math.max(1, prev - 1));
 
-  // Room and amenity handlers
+  // Room and add-on handlers
   const addRoom = (item) => {
     if (roomReservations.length > 0) {
       const existingCategory = roomReservations[0].category;
@@ -951,7 +932,7 @@ export default function ReservationProcess() {
         capacity: item.capacity,
         roomTypeName: item.roomType?.name ?? "",
         category: item.category,
-        amenities: [],
+        addOns: [],
       },
     ]);
   };
@@ -960,51 +941,47 @@ export default function ReservationProcess() {
     setRoomReservations((prev) => prev.filter((r) => r.roomId !== roomId));
   };
 
-  const addAmenityToRoom = (roomIndex) => {
-    // Check if the selected item is a cottage
+  const addAddOnToRoom = (roomIndex) => {
     const selectedItem = roomReservations[roomIndex];
     const item = availableRooms.find((r) => r._id === selectedItem.roomId);
 
-    console.log("Adding amenity to:", item?.category);
-
-    // Explicitly check if it's a cottage
     if (item?.category === "cottage") {
       toast.error(
-        "Amenities are not available for cottages. They can only be added to rooms.",
+        "Add-ons are not available for cottages. They can only be added to rooms.",
       );
       return;
     }
 
-    if (!amenities?.length) {
-      toast.error("No amenities available.");
+    if (!addOns?.length) {
+      toast.error("No add-ons available.");
       return;
     }
 
     setRoomReservations((prev) => {
       const updated = [...prev];
-      updated[roomIndex].amenities.push({
-        amenityId: amenities[0]._id,
+      updated[roomIndex].addOns.push({
+        addOnId: addOns[0]._id,
         quantity: 1,
       });
       return updated;
     });
   };
 
-  const updateAmenityInRoom = (roomIndex, amenityIndex, updates) => {
+  const updateAddOnInRoom = (roomIndex, addOnIndex, updates) => {
     setRoomReservations((prev) => {
       const updated = [...prev];
-      updated[roomIndex].amenities[amenityIndex] = {
-        ...updated[roomIndex].amenities[amenityIndex],
+      updated[roomIndex].addOns[addOnIndex] = {
+        ...updated[roomIndex].addOns[addOnIndex],
         ...updates,
       };
       return updated;
     });
   };
 
-  const removeAmenityFromRoom = (roomIndex, amenityIndex) => {
+  const removeAddOnFromRoom = (roomIndex, addOnIndex) => {
     setRoomReservations((prev) => {
       const updated = [...prev];
-      updated[roomIndex].amenities.splice(amenityIndex, 1);
+      updated[roomIndex].addOns.splice(addOnIndex, 1);
       return updated;
     });
   };
@@ -1106,9 +1083,9 @@ export default function ReservationProcess() {
         },
         rooms: roomReservations.map((roomRes) => ({
           roomId: roomRes.roomId,
-          amenities: roomRes.amenities.map((amenity) => ({
-            amenityId: amenity.amenityId,
-            quantity: amenity.quantity,
+          addOns: roomRes.addOns.map((addOn) => ({
+            addOnId: addOn.addOnId,
+            quantity: addOn.quantity,
           })),
         })),
         payment: {
@@ -1122,7 +1099,6 @@ export default function ReservationProcess() {
           referenceNumber: referenceNumber || null,
           isAdminInitiated: true,
         },
-        // Include guestId if existing guest, otherwise null for new guest
         guestId: reservationFormData.guestId || null,
       };
 
@@ -1146,9 +1122,7 @@ export default function ReservationProcess() {
         err.message.includes("stock") ||
         err.message.includes("availability")
       ) {
-        toast.error(
-          "Some amenities are out of stock. Please adjust quantities.",
-        );
+        toast.error("Some add-ons are out of stock. Please adjust quantities.");
         setStep(2);
       } else if (err.message.includes("Receipt image is required")) {
         toast.error("Receipt image is required for this payment type.");
@@ -1430,7 +1404,7 @@ export default function ReservationProcess() {
             {step === 2 && (
               <Section
                 title="Step 2: Select Rooms & Cottages"
-                subtitle="Select rooms or cottages and add amenities."
+                subtitle="Select rooms or cottages and add add-ons."
                 icon={<FiHome />}
                 right={
                   <div className="flex flex-wrap gap-3 text-xs text-gray-600">
@@ -1584,7 +1558,6 @@ export default function ReservationProcess() {
                                     <div className="text-sm font-semibold text-gray-900">
                                       {isCottage ? "Cottage" : "Room"}{" "}
                                       {item.roomNumber}
-                                      {item.category}
                                     </div>
                                     <span
                                       className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -1658,38 +1631,24 @@ export default function ReservationProcess() {
                         )}
                       </div>
                     </div>
-                    {/* Selected Items with Amenities */}
+
+                    {/* Selected Items with Add-Ons */}
                     {roomReservations.length > 0 && (
                       <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-gray-900">
                           Selected Items
                         </h3>
                         {roomReservations.map((roomRes, roomIndex) => {
-                          // Find the actual room/cottage data to get its category
                           const item = availableRooms.find(
                             (r) => r._id === roomRes.roomId,
                           );
                           const isCottage = item?.category === "cottage";
                           const isRoom = item?.category === "room";
 
-                          // Log for debugging
-                          console.log(
-                            "Item category:",
-                            item?.category,
-                            "isCottage:",
-                            isCottage,
-                            "isRoom:",
-                            isRoom,
-                          );
-
                           return (
                             <div
                               key={roomRes.roomId}
-                              className="
-            rounded-xl border border-gray-200 
-            bg-white
-            p-4
-          "
+                              className="rounded-xl border border-gray-200 bg-white p-4"
                             >
                               <div className="flex items-center justify-between mb-3">
                                 <div>
@@ -1716,176 +1675,145 @@ export default function ReservationProcess() {
                                   type="button"
                                   onClick={() => removeRoom(roomRes.roomId)}
                                   className="
-                h-9 w-9 rounded-xl border border-gray-200 
-                bg-white
-                hover:bg-gray-50
-                grid place-items-center text-[#0c2bfc]
-                transition-all duration-200
-                hover:shadow-md hover:-translate-y-0.5
-                active:translate-y-0
-              "
+                                    h-9 w-9 rounded-xl border border-gray-200 
+                                    bg-white hover:bg-gray-50
+                                    grid place-items-center text-[#0c2bfc]
+                                    transition-all duration-200
+                                    hover:shadow-md hover:-translate-y-0.5
+                                  "
                                   title="Remove item"
                                 >
                                   <FiTrash2 />
                                 </button>
                               </div>
 
-                              {/* Amenities Section - ONLY show for rooms, NOT for cottages */}
+                              {/* Add-Ons Section - ONLY for rooms */}
                               {!isCottage && isRoom && (
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between">
                                     <div className="text-xs font-medium text-gray-700">
-                                      Amenities
+                                      Add-Ons
                                     </div>
                                     <button
                                       type="button"
-                                      onClick={() =>
-                                        addAmenityToRoom(roomIndex)
-                                      }
+                                      onClick={() => addAddOnToRoom(roomIndex)}
                                       className="
-                    h-8 px-3 rounded-xl 
-                    bg-[#0c2bfc] 
-                    hover:bg-[#0a24d6]
-                    text-white text-xs font-medium inline-flex items-center gap-1
-                    transition-all duration-200
-                    hover:shadow-md hover:-translate-y-0.5
-                    active:translate-y-0
-                  "
+                                        h-8 px-3 rounded-xl 
+                                        bg-[#0c2bfc] hover:bg-[#0a24d6]
+                                        text-white text-xs font-medium inline-flex items-center gap-1
+                                        transition-all duration-200
+                                        hover:shadow-md hover:-translate-y-0.5
+                                      "
                                     >
-                                      <FiPlus size={12} /> Add Amenity
+                                      <FiPlus size={12} /> Add Add-On
                                     </button>
                                   </div>
 
-                                  {roomRes.amenities.map(
-                                    (amenity, amenityIndex) => {
-                                      const amenityData = amenities.find(
-                                        (a) => a._id === amenity.amenityId,
-                                      );
+                                  {roomRes.addOns.map((addOn, addOnIndex) => {
+                                    const addOnData = addOns.find(
+                                      (a) => a._id === addOn.addOnId,
+                                    );
 
-                                      return (
-                                        <div
-                                          key={`${amenity.amenityId}-${amenityIndex}`}
-                                          className="
-                      grid gap-3 sm:grid-cols-12 items-center 
-                      rounded-xl border border-gray-200 
-                      bg-white
-                      p-3
-                    "
-                                        >
-                                          <div className="sm:col-span-7">
-                                            <label className="text-xs text-gray-500">
-                                              Amenity
-                                            </label>
-                                            <select
-                                              value={amenity.amenityId}
-                                              onChange={(e) =>
-                                                updateAmenityInRoom(
+                                    return (
+                                      <div
+                                        key={`${addOn.addOnId}-${addOnIndex}`}
+                                        className="
+                                          grid gap-3 sm:grid-cols-12 items-center 
+                                          rounded-xl border border-gray-200 bg-white p-3
+                                        "
+                                      >
+                                        <div className="sm:col-span-7">
+                                          <label className="text-xs text-gray-500">
+                                            Add-On
+                                          </label>
+                                          <select
+                                            value={addOn.addOnId}
+                                            onChange={(e) =>
+                                              updateAddOnInRoom(
+                                                roomIndex,
+                                                addOnIndex,
+                                                { addOnId: e.target.value },
+                                              )
+                                            }
+                                            className="
+                                              mt-1 w-full h-10 rounded-xl border border-gray-200 
+                                              bg-white px-3 text-sm outline-none 
+                                              focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                                            "
+                                          >
+                                            {addOns.map((a) => (
+                                              <option key={a._id} value={a._id}>
+                                                {a.name} ({formatMoney(a.rate)})
+                                                {a.category &&
+                                                  ` - ${a.category}`}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
+
+                                        <div className="sm:col-span-3">
+                                          <label className="text-xs text-gray-500">
+                                            Quantity
+                                          </label>
+                                          <div className="mt-1">
+                                            <Stepper
+                                              value={addOn.quantity}
+                                              onChange={(newQuantity) =>
+                                                updateAddOnInRoom(
                                                   roomIndex,
-                                                  amenityIndex,
-                                                  {
-                                                    amenityId: e.target.value,
-                                                  },
+                                                  addOnIndex,
+                                                  { quantity: newQuantity },
                                                 )
                                               }
-                                              className="
-                          mt-1 w-full h-10 rounded-xl border border-gray-200 
-                          bg-white px-3 text-sm 
-                          outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                          text-gray-700
-                        "
-                                            >
-                                              {amenities.map((a) => (
-                                                <option
-                                                  key={a._id}
-                                                  value={a._id}
-                                                >
-                                                  {a.name} (
-                                                  {formatMoney(a.rate)})
-                                                </option>
-                                              ))}
-                                            </select>
-                                          </div>
-
-                                          <div className="sm:col-span-3">
-                                            <label className="text-xs text-gray-500">
-                                              Quantity
-                                            </label>
-                                            <div className="mt-1">
-                                              <Stepper
-                                                value={amenity.quantity}
-                                                onChange={(newQuantity) =>
-                                                  updateAmenityInRoom(
-                                                    roomIndex,
-                                                    amenityIndex,
-                                                    {
-                                                      quantity: newQuantity,
-                                                    },
-                                                  )
-                                                }
-                                                min={1}
-                                                max={99}
-                                                step={1}
-                                                size="small"
-                                              />
-                                            </div>
-                                          </div>
-
-                                          <div className="sm:col-span-2 flex justify-end">
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                removeAmenityFromRoom(
-                                                  roomIndex,
-                                                  amenityIndex,
-                                                )
-                                              }
-                                              className="
-                          h-10 w-10 rounded-xl border border-gray-200 
-                          bg-white
-                          hover:bg-gray-50
-                          grid place-items-center text-[#0c2bfc]
-                          transition-all duration-200
-                          hover:shadow-md hover:-translate-y-0.5
-                          active:translate-y-0
-                        "
-                                              title="Remove amenity"
-                                            >
-                                              <FiTrash2 />
-                                            </button>
+                                              min={1}
+                                              max={99}
+                                              step={1}
+                                              size="small"
+                                            />
                                           </div>
                                         </div>
-                                      );
-                                    },
-                                  )}
 
-                                  {roomRes.amenities.length === 0 && (
-                                    <div
-                                      className="
-                    text-xs text-gray-500 italic text-center py-3
-                    border border-dashed border-gray-200 rounded-xl
-                    bg-gray-50
-                  "
-                                    >
-                                      No amenities added to this room.
+                                        <div className="sm:col-span-2 flex justify-end">
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              removeAddOnFromRoom(
+                                                roomIndex,
+                                                addOnIndex,
+                                              )
+                                            }
+                                            className="
+                                              h-10 w-10 rounded-xl border border-gray-200 
+                                              bg-white hover:bg-gray-50
+                                              grid place-items-center text-[#0c2bfc]
+                                              transition-all duration-200
+                                              hover:shadow-md hover:-translate-y-0.5
+                                            "
+                                            title="Remove add-on"
+                                          >
+                                            <FiTrash2 />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+
+                                  {roomRes.addOns.length === 0 && (
+                                    <div className="text-xs text-gray-500 italic text-center py-3 border border-dashed border-gray-200 rounded-xl bg-gray-50">
+                                      No add-ons added to this room.
                                     </div>
                                   )}
                                 </div>
                               )}
 
-                              {/* For cottages, show a message that amenities are not available */}
+                              {/* Cottages note */}
                               {isCottage && (
-                                <div
-                                  className="
-                mt-2 text-xs text-gray-500 italic text-center py-3
-                border border-dashed border-gray-200 rounded-xl
-                bg-gray-50
-              "
-                                >
+                                <div className="mt-2 text-xs text-gray-500 italic text-center py-3 border border-dashed border-gray-200 rounded-xl bg-gray-50">
                                   <span className="text-[#00af00] font-medium">
                                     ℹ️ Note:
                                   </span>{" "}
-                                  Amenities are only available for rooms, not
-                                  for cottages.
+                                  Add-ons are only available for rooms, not for
+                                  cottages.
                                 </div>
                               )}
                             </div>
@@ -1930,9 +1858,7 @@ export default function ReservationProcess() {
                           const value = e.target.value;
                           setEmailInput(value);
 
-                          // If the email is cleared, reset all guest selection state
                           if (!value || value.trim() === "") {
-                            // Clear guest selection
                             setGuestExists(false);
                             setIsCreatingNewGuest(false);
                             setOriginalGuestData(null);
@@ -1942,7 +1868,6 @@ export default function ReservationProcess() {
                               ...prev,
                               guestId: "",
                             }));
-                            // Clear guest form fields
                             setGuest({
                               firstName: "",
                               lastName: "",
@@ -1951,12 +1876,9 @@ export default function ReservationProcess() {
                             });
                             setFieldError("email", "");
                           } else {
-                            // Only update email if we have a value
                             setGuest((g) => ({ ...g, email: value }));
                             setFieldError("email", "");
 
-                            // If we were previously showing an existing guest and user starts typing,
-                            // reset the selection state
                             if (guestExists || originalGuestData) {
                               setGuestExists(false);
                               setOriginalGuestData(null);
@@ -1964,7 +1886,6 @@ export default function ReservationProcess() {
                                 ...prev,
                                 guestId: "",
                               }));
-                              // Clear other guest fields when email changes
                               setGuest({
                                 firstName: "",
                                 lastName: "",
@@ -1973,7 +1894,6 @@ export default function ReservationProcess() {
                               });
                             }
 
-                            // Automatically set to creating new guest mode when typing
                             if (!guestExists && !originalGuestData) {
                               setIsCreatingNewGuest(true);
                             }
@@ -2000,17 +1920,17 @@ export default function ReservationProcess() {
                           }, 300);
                         }}
                         className={`
-              mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-              focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-              transition-all duration-200 bg-white
-              ${
-                errors.email
-                  ? "border-red-300 bg-red-50"
-                  : guestExists
-                    ? "border-[#00af00] bg-[#00af00]/5"
-                    : "border-gray-200"
-              }
-            `}
+                          mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                          focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                          transition-all duration-200 bg-white
+                          ${
+                            errors.email
+                              ? "border-red-300 bg-red-50"
+                              : guestExists
+                                ? "border-[#00af00] bg-[#00af00]/5"
+                                : "border-gray-200"
+                          }
+                        `}
                         placeholder="Type email to search existing guests..."
                       />
 
@@ -2038,9 +1958,9 @@ export default function ReservationProcess() {
                                   setFieldError("email", "");
                                 }}
                                 className="
-                      w-full text-left p-3 hover:bg-gray-50 
-                      border-b border-gray-100 last:border-b-0 transition-colors
-                    "
+                                  w-full text-left p-3 hover:bg-gray-50 
+                                  border-b border-gray-100 last:border-b-0 transition-colors
+                                "
                                 onMouseDown={(e) => e.preventDefault()}
                               >
                                 <div className="flex items-center justify-between">
@@ -2092,7 +2012,6 @@ export default function ReservationProcess() {
                       onChange={(e) => {
                         if (!guestExists) {
                           const value = e.target.value;
-                          // Only allow letters and spaces
                           if (/^[A-Za-z\s]*$/.test(value)) {
                             setGuest((g) => ({ ...g, firstName: value }));
                             setFieldError("firstName", "");
@@ -2109,17 +2028,17 @@ export default function ReservationProcess() {
                       }}
                       readOnly={guestExists}
                       className={`
-            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            transition-all duration-200 bg-white
-            ${
-              errors.firstName
-                ? "border-red-300 bg-red-50"
-                : guestExists
-                  ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
-                  : "border-gray-200"
-            }
-          `}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${
+                          errors.firstName
+                            ? "border-red-300 bg-red-50"
+                            : guestExists
+                              ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
+                              : "border-gray-200"
+                        }
+                      `}
                       placeholder="John (letters and spaces only)"
                     />
                     <FieldError text={errors.firstName} />
@@ -2135,7 +2054,6 @@ export default function ReservationProcess() {
                       onChange={(e) => {
                         if (!guestExists) {
                           const value = e.target.value;
-                          // Only allow letters and spaces
                           if (/^[A-Za-z\s]*$/.test(value)) {
                             setGuest((g) => ({ ...g, lastName: value }));
                             setFieldError("lastName", "");
@@ -2152,17 +2070,17 @@ export default function ReservationProcess() {
                       }}
                       readOnly={guestExists}
                       className={`
-            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            transition-all duration-200 bg-white
-            ${
-              errors.lastName
-                ? "border-red-300 bg-red-50"
-                : guestExists
-                  ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
-                  : "border-gray-200"
-            }
-          `}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${
+                          errors.lastName
+                            ? "border-red-300 bg-red-50"
+                            : guestExists
+                              ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
+                              : "border-gray-200"
+                        }
+                      `}
                       placeholder="Doe (letters and spaces only)"
                     />
                     <FieldError text={errors.lastName} />
@@ -2178,7 +2096,6 @@ export default function ReservationProcess() {
                       onChange={(e) => {
                         if (!guestExists) {
                           const value = e.target.value;
-                          // Only allow numbers
                           if (/^\d*$/.test(value)) {
                             setGuest((g) => ({
                               ...g,
@@ -2201,17 +2118,17 @@ export default function ReservationProcess() {
                       }}
                       readOnly={guestExists}
                       className={`
-            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            transition-all duration-200 bg-white
-            ${
-              errors.contactNumber
-                ? "border-red-300 bg-red-50"
-                : guestExists
-                  ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
-                  : "border-gray-200"
-            }
-          `}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${
+                          errors.contactNumber
+                            ? "border-red-300 bg-red-50"
+                            : guestExists
+                              ? "border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
+                              : "border-gray-200"
+                        }
+                      `}
                       placeholder="09123456789 (numbers only)"
                       maxLength={11}
                     />
@@ -2271,7 +2188,6 @@ export default function ReservationProcess() {
                       value={payment.paymentOption}
                       onChange={(e) => {
                         const newPaymentOptionId = e.target.value;
-
                         const calculatedAmount = calculatePaymentAmount(
                           newPaymentOptionId,
                           finalTotal,
@@ -2287,11 +2203,11 @@ export default function ReservationProcess() {
                         setFieldError("paymentOption", "");
                       }}
                       className={`
-mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-transition-all duration-200 bg-white
-${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
-`}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
+                      `}
                     >
                       <option value="">Select payment option</option>
                       {paymentOptions
@@ -2325,7 +2241,6 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                           ...p,
                           paymentType: e.target.value,
                         }));
-                        // Clear receipt fields when payment type changes
                         setSelectedReceiptImage(null);
                         setReceiptImagePreview("");
                         setReferenceNumber("");
@@ -2333,15 +2248,15 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                         setFieldError("receipt", "");
                       }}
                       className={`
-            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            transition-all duration-200 bg-white
-            ${
-              errors.paymentType
-                ? "border-red-300 bg-red-50"
-                : "border-gray-200"
-            }
-          `}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${
+                          errors.paymentType
+                            ? "border-red-300 bg-red-50"
+                            : "border-gray-200"
+                        }
+                      `}
                     >
                       <option value="">Select payment type</option>
                       {paymentTypes
@@ -2373,11 +2288,11 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                         setFieldError("discountImage", "");
                       }}
                       className="
-            mt-1 w-full h-11 rounded-xl border border-gray-200 
-            bg-white px-4 text-sm 
-            outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            text-gray-700
-          "
+                        mt-1 w-full h-11 rounded-xl border border-gray-200 
+                        bg-white px-4 text-sm 
+                        outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        text-gray-700
+                      "
                     >
                       <option value="">No discount</option>
                       {discounts
@@ -2415,13 +2330,15 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                         setFieldError("amountPaid", "");
                       }}
                       className={`
-            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            transition-all duration-200 bg-white
-            ${
-              errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"
-            }
-          `}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${
+                          errors.amountPaid
+                            ? "border-red-300 bg-red-50"
+                            : "border-gray-200"
+                        }
+                      `}
                     />
                     <FieldError text={errors.amountPaid} />
                   </div>
@@ -2444,15 +2361,15 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                         setFieldError("amountReceived", "");
                       }}
                       className={`
-            mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-            focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-            transition-all duration-200 bg-white
-            ${
-              errors.amountReceived
-                ? "border-red-300 bg-red-50"
-                : "border-gray-200"
-            }
-          `}
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white
+                        ${
+                          errors.amountReceived
+                            ? "border-red-300 bg-red-50"
+                            : "border-gray-200"
+                        }
+                      `}
                     />
                     <FieldError text={errors.amountReceived} />
                   </div>
@@ -2469,14 +2386,12 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                         type="button"
                         onClick={() => discountFileInputRef.current?.click()}
                         className="
-              h-9 px-4 rounded-xl 
-              bg-[#0c2bfc] 
-              hover:bg-[#0a24d6]
-              text-white text-xs font-medium inline-flex items-center gap-2
-              transition-all duration-200
-              hover:shadow-md hover:-translate-y-0.5
-              active:translate-y-0
-            "
+                          h-9 px-4 rounded-xl 
+                          bg-[#0c2bfc] hover:bg-[#0a24d6]
+                          text-white text-xs font-medium inline-flex items-center gap-2
+                          transition-all duration-200
+                          hover:shadow-md hover:-translate-y-0.5
+                        "
                       >
                         <FiUploadCloud size={12} /> Upload
                       </button>
@@ -2495,12 +2410,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                     </div>
 
                     {discountImagePreview ? (
-                      <div
-                        className="
-            rounded-xl border border-gray-200 overflow-hidden 
-            bg-white
-          "
-                      >
+                      <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
                         <div className="relative">
                           <img
                             src={discountImagePreview}
@@ -2511,15 +2421,12 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                             type="button"
                             onClick={removeDiscountImage}
                             className="
-                  absolute top-2 right-2 h-9 w-9 rounded-xl 
-                  border border-gray-200 
-                  bg-white
-                  hover:bg-gray-50
-                  grid place-items-center text-[#0c2bfc]
-                  transition-all duration-200
-                  hover:shadow-md hover:-translate-y-0.5
-                  active:translate-y-0
-                "
+                              absolute top-2 right-2 h-9 w-9 rounded-xl 
+                              border border-gray-200 bg-white hover:bg-gray-50
+                              grid place-items-center text-[#0c2bfc]
+                              transition-all duration-200
+                              hover:shadow-md hover:-translate-y-0.5
+                            "
                             title="Remove"
                           >
                             <FiTrash2 />
@@ -2527,13 +2434,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                         </div>
                       </div>
                     ) : (
-                      <div
-                        className="
-            rounded-xl border border-dashed border-gray-200 
-            bg-gray-50
-            p-8 text-center text-sm text-gray-500
-          "
-                      >
+                      <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
                         <FiUploadCloud
                           className="mx-auto mb-3 text-gray-400"
                           size={28}
@@ -2548,7 +2449,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                   </div>
                 )}
 
-                {/* Receipt Section - UPDATED to make image optional with reference number */}
+                {/* Receipt Section */}
                 {requiresReceipt && (
                   <div className="mt-6">
                     <div className="mb-4">
@@ -2624,14 +2525,12 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                             type="button"
                             onClick={() => receiptFileInputRef.current?.click()}
                             className="
-                  h-9 px-4 rounded-xl 
-                  bg-[#0c2bfc] 
-                  hover:bg-[#0a24d6]
-                  text-white text-xs font-medium inline-flex items-center gap-2
-                  transition-all duration-200
-                  hover:shadow-md hover:-translate-y-0.5
-                  active:translate-y-0
-                "
+                              h-9 px-4 rounded-xl 
+                              bg-[#0c2bfc] hover:bg-[#0a24d6]
+                              text-white text-xs font-medium inline-flex items-center gap-2
+                              transition-all duration-200
+                              hover:shadow-md hover:-translate-y-0.5
+                            "
                           >
                             <FiUploadCloud size={12} />
                             {selectedReceiptImage ? "Change Image" : "Upload"}
@@ -2652,12 +2551,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                       </div>
 
                       {receiptImagePreview ? (
-                        <div
-                          className="
-              rounded-xl border border-gray-200 overflow-hidden 
-              bg-white
-            "
-                        >
+                        <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
                           <div className="relative">
                             <img
                               src={receiptImagePreview}
@@ -2668,15 +2562,12 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                               type="button"
                               onClick={removeReceiptImage}
                               className="
-                    absolute top-2 right-2 h-9 w-9 rounded-xl 
-                    border border-gray-200 
-                    bg-white
-                    hover:bg-gray-50
-                    grid place-items-center text-[#0c2bfc]
-                    transition-all duration-200
-                    hover:shadow-md hover:-translate-y-0.5
-                    active:translate-y-0
-                  "
+                                absolute top-2 right-2 h-9 w-9 rounded-xl 
+                                border border-gray-200 bg-white hover:bg-gray-50
+                                grid place-items-center text-[#0c2bfc]
+                                transition-all duration-200
+                                hover:shadow-md hover:-translate-y-0.5
+                              "
                               title="Remove"
                             >
                               <FiTrash2 />
@@ -2684,13 +2575,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                           </div>
                         </div>
                       ) : (
-                        <div
-                          className="
-              rounded-xl border border-dashed border-gray-200 
-              bg-gray-50
-              p-8 text-center text-sm text-gray-500
-            "
-                        >
+                        <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-8 text-center text-sm text-gray-500">
                           <FiUploadCloud
                             className="mx-auto mb-3 text-gray-400"
                             size={28}
@@ -2792,7 +2677,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
 
                 <div className="border-t border-gray-200 pt-4"></div>
 
-                {/* Room Breakdown */}
+                {/* Room Breakdown with Add-Ons */}
                 {roomTotals.map((roomTotal, index) => {
                   const roomRes = roomReservations[index];
                   const item = availableRooms.find(
@@ -2823,21 +2708,23 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
                           </span>
                           <span>{formatMoney(roomTotal.roomSubtotal)}</span>
                         </div>
-                        {roomRes?.amenities.map((amenity, aIndex) => {
-                          const amenityData = amenities.find(
-                            (a) => a._id === amenity.amenityId,
+                        {roomRes?.addOns.map((addOn, aIndex) => {
+                          const addOnData = addOns.find(
+                            (a) => a._id === addOn.addOnId,
                           );
                           return (
                             <div
-                              key={`${amenity.amenityId}-${aIndex}`}
+                              key={`${addOn.addOnId}-${aIndex}`}
                               className="flex justify-between text-xs"
                             >
                               <span className="text-gray-500 pl-2">
-                                • {amenityData?.name} (×{amenity.quantity})
+                                • {addOnData?.name} (×{addOn.quantity})
+                                {addOnData?.category &&
+                                  ` - ${addOnData.category}`}
                               </span>
                               <span>
                                 {formatMoney(
-                                  (amenityData?.rate || 0) * amenity.quantity,
+                                  (addOnData?.rate || 0) * addOn.quantity,
                                 )}
                               </span>
                             </div>
@@ -2952,13 +2839,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
 
               {/* Warning messages */}
               {step === 2 && reservationFormData.adults > totalCapacity && (
-                <div
-                  className="
-                  mt-4 rounded-xl border border-gray-200 
-                  bg-gray-50
-                  px-4 py-3 text-xs text-gray-800
-                "
-                >
+                <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-800">
                   <div className="font-medium">Capacity Warning</div>
                   <div className="mt-1">
                     Selected capacity ({totalCapacity}) is not enough for{" "}
@@ -2971,12 +2852,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
         </div>
 
         {/* Footer Navigation */}
-        <div
-          className="
-          flex items-center justify-between gap-3 pt-4 border-t border-gray-200
-          bg-white p-4 rounded-xl
-        "
-        >
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-200 bg-white p-4 rounded-xl">
           <button
             type="button"
             onClick={goBack}
@@ -3047,14 +2923,14 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
               onClick={handleStep3Next}
               disabled={searchLoading || !isGuestValid}
               className={`
-      h-11 px-5 rounded-xl text-white text-sm font-medium 
-      inline-flex items-center gap-2 transition-all duration-200
-      ${
-        searchLoading || !isGuestValid
-          ? "bg-[#0c2bfc]/50 cursor-not-allowed"
-          : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-lg hover:-translate-y-0.5"
-      }
-    `}
+                h-11 px-5 rounded-xl text-white text-sm font-medium 
+                inline-flex items-center gap-2 transition-all duration-200
+                ${
+                  searchLoading || !isGuestValid
+                    ? "bg-[#0c2bfc]/50 cursor-not-allowed"
+                    : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-lg hover:-translate-y-0.5"
+                }
+              `}
             >
               Next
               <FiChevronRight />
@@ -3083,12 +2959,7 @@ ${errors.paymentOption ? "border-red-300 bg-red-50" : "border-gray-200"}
 
         {/* Loader overlay */}
         {(loading || loadingRooms) && (
-          <div
-            className="
-            absolute inset-0 z-50 flex items-center justify-center 
-            bg-white/90 backdrop-blur-sm
-          "
-          >
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/90 backdrop-blur-sm">
             <Loader
               size={60}
               variant="primary"

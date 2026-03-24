@@ -438,7 +438,7 @@ export default function Rooms() {
 
               <button
                 type="button"
-                onClick={() => navigate("/amenities")}
+                onClick={() => navigate("/add-ons")}
                 className="
                   h-11 px-5 rounded-xl 
                   border border-gray-200 
@@ -450,9 +450,9 @@ export default function Rooms() {
                   active:translate-y-0
                   text-gray-700 hover:text-[#0c2bfc]
                 "
-                title="Go to Amenities"
+                title="Go to Add-ons"
               >
-                <FiGrid /> Amenities
+                <FiGrid /> Add-ons
               </button>
 
               {isAdmin && (

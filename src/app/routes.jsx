@@ -30,6 +30,7 @@ const Inbox = lazy(() => import("../pages/Inbox.jsx"));
 const Notifications = lazy(() => import("../pages/Notifications.jsx"));
 const RoomTypes = lazy(() => import("../pages/RoomTypes.jsx"));
 const Amenities = lazy(() => import("../pages/Amenities.jsx"));
+const AddOns = lazy(() => import("../pages/AddOns.jsx"));
 const AvailableToday = lazy(() => import("../pages/AvailableToday.jsx"));
 const DiscountTypes = lazy(() => import("../pages/DiscountTypes.jsx"));
 const PaymentOption = lazy(() => import("../pages/PaymentOption.jsx"));
@@ -92,6 +93,10 @@ export default [
           {
             path: "amenities",
             element: withLoader(<Amenities />, "Loading amenities..."),
+          },
+          {
+            path: "add-ons",
+            element: withLoader(<AddOns />, "Loading add-ons..."),
           },
           {
             path: "reservations",

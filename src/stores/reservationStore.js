@@ -546,7 +546,9 @@ export const useReservationStore = create((set, get) => ({
     }
   },
 
-  // Create full reservation (complete flow)
+  // src/stores/reservationStore.js - Update the relevant parts
+
+  // Update the createFullReservation method
   createFullReservation: async ({
     guest,
     reservationData,
@@ -696,13 +698,13 @@ export const useReservationStore = create((set, get) => ({
         currentReservation: reservation,
       }));
 
-      // Step 3: Add rooms to reservation
+      // Step 3: Add rooms to reservation with add-ons
       if (rooms.length > 0) {
         const roomsPayload = {
           reservationId: reservationId,
           rooms: rooms.map((room) => ({
             roomId: room.roomId,
-            amenities: room.amenities || [],
+            addOns: room.addOns || [], // Changed from amenities to addOns
           })),
         };
 
@@ -831,6 +833,44 @@ export const useReservationStore = create((set, get) => ({
       set({ loading: false, error: err.message });
       throw err;
     }
+  },
+
+  // Update formatAmenityData to formatAddOnData
+  formatAddOnData: (addOns) =>
+    addOns.map((a) => ({
+      addOnId: a._id || a.addOnId,
+      quantity: a.quantity || 1,
+    })),
+
+  // Update calculateTotals to use addOns instead of amenities
+  calculateTotals: (reservation) => {
+    if (!reservation)
+      return {
+        nights: 0,
+        roomsSubtotal: 0,
+        addOnsSubtotal: 0,
+        totalAmount: 0,
+      };
+
+    const checkIn = new Date(reservation.checkIn);
+    const checkOut = new Date(reservation.checkOut);
+    const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+
+    // Calculate rooms total
+    const roomsSubtotal = (reservation.rooms || []).reduce((sum, room) => {
+      const roomRate = room.rate || room.roomId?.rate || 0;
+      return sum + roomRate * nights;
+    }, 0);
+
+    // Calculate add-ons total (changed from amenities)
+    const addOnsSubtotal = (reservation.addOns || []).reduce((sum, addOn) => {
+      const rate = addOn.rate || addOn.addOnId?.rate || 0;
+      const quantity = addOn.quantity || 1;
+      return sum + rate * quantity;
+    }, 0);
+
+    const totalAmount = roomsSubtotal + addOnsSubtotal;
+    return { nights, roomsSubtotal, addOnsSubtotal, totalAmount };
   },
 
   // Clear error
