@@ -10,7 +10,7 @@ export default function AccountMenu() {
   // Get user data from auth
   const user = getUser();
   const userRole = getUserRole();
-
+  console.log(user);
   // Get initials from user's name
   const getUserInitials = () => {
     if (!user) return "AD";

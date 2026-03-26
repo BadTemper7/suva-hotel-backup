@@ -468,7 +468,90 @@ export const useUserStore = create(
           return { success: false, error: err.message };
         }
       },
+      changePassword: async (newPassword, confirmPassword) => {
+        set({ loading: true, error: null });
+        try {
+          const { currentUser } = get();
+          if (!currentUser || !currentUser._id) {
+            throw new Error("No user logged in");
+          }
 
+          if (newPassword !== confirmPassword) {
+            throw new Error("Passwords do not match");
+          }
+
+          if (newPassword.length < 8) {
+            throw new Error("Password must be at least 8 characters");
+          }
+
+          if (newPassword.length > 16) {
+            throw new Error("Password cannot exceed 16 characters");
+          }
+
+          if (!/[A-Z]/.test(newPassword)) {
+            throw new Error(
+              "Password must contain at least one uppercase letter",
+            );
+          }
+
+          if (!/[a-z]/.test(newPassword)) {
+            throw new Error(
+              "Password must contain at least one lowercase letter",
+            );
+          }
+
+          if (!/[0-9]/.test(newPassword)) {
+            throw new Error("Password must contain at least one number");
+          }
+
+          if (!/[_!@#$%^&*]/.test(newPassword)) {
+            throw new Error(
+              "Password must contain at least one special character (_!@#$%^&*)",
+            );
+          }
+
+          if (/\s/.test(newPassword)) {
+            throw new Error("Password cannot contain spaces");
+          }
+
+          const token = getToken();
+          const res = await fetch(`${API_URL}/users/change-password`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              userId: currentUser._id,
+              newPassword,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.message || "Failed to change password");
+          }
+
+          if (data.success) {
+            // Update local storage with new user data (without password)
+            const updatedUser = data.user || currentUser;
+            setUser(updatedUser);
+
+            set({
+              currentUser: updatedUser,
+              loading: false,
+            });
+
+            return { success: true, message: data.message };
+          } else {
+            throw new Error(data.message || "Failed to change password");
+          }
+        } catch (err) {
+          set({ loading: false, error: err.message });
+          return { success: false, error: err.message };
+        }
+      },
       /* -------------------- Helper Methods -------------------- */
       clearError: () => set({ error: null }),
 
