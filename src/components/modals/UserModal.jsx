@@ -1,17 +1,19 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiX, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiX, FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 import { useUserStore } from "../../stores/userStore.js";
 import { toast } from "react-hot-toast";
 import Loader from "../layout/Loader";
 
-const ROLES = ["admin", "receptionist"];
+const ROLES = ["admin", "receptionist", "superadmin"]; // Added superadmin
 const STATUS = ["active", "inactive"];
 
-// Validation functions
+// Validation functions - UPDATED to match backend
 const isValidUsername = (username) => /^[a-zA-Z0-9_]{8,16}$/.test(username);
 const isValidPassword = (password) =>
-  /^(?=.*[A-Z])(?=.*[_!@#$%^&*])[A-Za-z\d_!@#$%^&*]{8,16}$/.test(password);
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[_!@#$%^&*])[A-Za-z\d_!@#$%^&*]{8,16}$/.test(
+    password,
+  );
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 const isValidPhone = (phone) => /^09\d{9}$/.test(phone);
 const isValidName = (name) => /^[A-Za-z\s]+$/.test(name);
@@ -20,6 +22,7 @@ export default function UserModal({ open, mode, user, onClose }) {
   const createUser = useUserStore((state) => state.createUser);
   const updateUser = useUserStore((state) => state.updateUser);
   const fetchUsers = useUserStore((state) => state.fetchUsers);
+  const currentUser = useUserStore((state) => state.currentUser); // Get current logged-in user
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -33,6 +36,7 @@ export default function UserModal({ open, mode, user, onClose }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [changePassword, setChangePassword] = useState(false); // For edit mode password change
 
   // Validation errors state
   const [errors, setErrors] = useState({
@@ -69,6 +73,7 @@ export default function UserModal({ open, mode, user, onClose }) {
       setStatus(user.status || "active");
       setPassword("");
       setConfirmPassword("");
+      setChangePassword(false); // Reset password change flag
 
       // Reset touched states
       setTouched({
@@ -91,7 +96,7 @@ export default function UserModal({ open, mode, user, onClose }) {
         password: "",
         confirmPassword: "",
       });
-    } else {
+    } else if (mode === "add") {
       setFirstName("");
       setLastName("");
       setUsername("");
@@ -101,6 +106,7 @@ export default function UserModal({ open, mode, user, onClose }) {
       setStatus("active");
       setPassword("");
       setConfirmPassword("");
+      setChangePassword(false);
 
       // Reset touched states
       setTouched({
@@ -169,15 +175,28 @@ export default function UserModal({ open, mode, user, onClose }) {
   };
 
   const validatePassword = (value) => {
-    if (!value && mode === "add") return "Password is required";
+    if (mode === "add" && !value) return "Password is required";
     if (mode === "add" && !isValidPassword(value))
-      return "Password must be 8-16 characters, contain at least one uppercase letter and one special character (_!@#$%^&*)";
+      return "Password must be 8-16 characters, contain at least one uppercase letter, one lowercase letter, one number, and one special character (_!@#$%^&*)";
+
+    // For edit mode with change password enabled
+    if (mode === "edit" && changePassword) {
+      if (!value) return "New password is required";
+      if (!isValidPassword(value))
+        return "Password must be 8-16 characters, contain at least one uppercase letter, one lowercase letter, one number, and one special character (_!@#$%^&*)";
+    }
     return "";
   };
 
   const validateConfirmPassword = (value) => {
     if (mode === "add" && !value) return "Please confirm your password";
     if (mode === "add" && value !== password) return "Passwords do not match";
+
+    // For edit mode with change password enabled
+    if (mode === "edit" && changePassword) {
+      if (!value) return "Please confirm your new password";
+      if (value !== password) return "Passwords do not match";
+    }
     return "";
   };
 
@@ -215,7 +234,7 @@ export default function UserModal({ open, mode, user, onClose }) {
         }));
         break;
       case "password":
-        if (mode === "add") {
+        if (mode === "add" || (mode === "edit" && changePassword)) {
           setErrors((prev) => ({
             ...prev,
             password: validatePassword(password),
@@ -230,7 +249,7 @@ export default function UserModal({ open, mode, user, onClose }) {
         }
         break;
       case "confirmPassword":
-        if (mode === "add") {
+        if (mode === "add" || (mode === "edit" && changePassword)) {
           setErrors((prev) => ({
             ...prev,
             confirmPassword: validateConfirmPassword(confirmPassword),
@@ -243,7 +262,6 @@ export default function UserModal({ open, mode, user, onClose }) {
   // Handle input changes with real-time validation and length limits
   const handleFirstNameChange = (e) => {
     const value = e.target.value;
-    // Limit to 50 characters
     if (value.length <= 50) {
       setFirstName(value);
       if (touched.firstName) {
@@ -254,7 +272,6 @@ export default function UserModal({ open, mode, user, onClose }) {
 
   const handleLastNameChange = (e) => {
     const value = e.target.value;
-    // Limit to 50 characters
     if (value.length <= 50) {
       setLastName(value);
       if (touched.lastName) {
@@ -293,7 +310,10 @@ export default function UserModal({ open, mode, user, onClose }) {
   const handlePasswordChange = (e) => {
     const value = e.target.value;
     setPassword(value);
-    if (touched.password && mode === "add") {
+    if (
+      touched.password &&
+      (mode === "add" || (mode === "edit" && changePassword))
+    ) {
       setErrors((prev) => ({ ...prev, password: validatePassword(value) }));
       // Also validate confirm password if it has a value
       if (confirmPassword) {
@@ -308,7 +328,10 @@ export default function UserModal({ open, mode, user, onClose }) {
   const handleConfirmPasswordChange = (e) => {
     const value = e.target.value;
     setConfirmPassword(value);
-    if (touched.confirmPassword && mode === "add") {
+    if (
+      touched.confirmPassword &&
+      (mode === "add" || (mode === "edit" && changePassword))
+    ) {
       setErrors((prev) => ({
         ...prev,
         confirmPassword: validateConfirmPassword(value),
@@ -318,37 +341,39 @@ export default function UserModal({ open, mode, user, onClose }) {
 
   // Check if form is valid
   const isFormValid = () => {
+    const baseValid =
+      !errors.firstName &&
+      !errors.lastName &&
+      !errors.username &&
+      !errors.email &&
+      !errors.contactNumber &&
+      firstName.trim() &&
+      lastName.trim() &&
+      username.trim() &&
+      email.trim() &&
+      contactNumber.trim();
+
     if (mode === "add") {
       return (
-        !errors.firstName &&
-        !errors.lastName &&
-        !errors.username &&
-        !errors.email &&
-        !errors.contactNumber &&
+        baseValid &&
         !errors.password &&
         !errors.confirmPassword &&
-        firstName.trim() &&
-        lastName.trim() &&
-        username.trim() &&
-        email.trim() &&
-        contactNumber.trim() &&
         password &&
         confirmPassword
       );
-    } else {
+    } else if (mode === "edit" && changePassword) {
       return (
-        !errors.firstName &&
-        !errors.lastName &&
-        !errors.username &&
-        !errors.email &&
-        !errors.contactNumber &&
-        firstName.trim() &&
-        lastName.trim() &&
-        username.trim() &&
-        email.trim() &&
-        contactNumber.trim()
+        baseValid &&
+        !errors.password &&
+        !errors.confirmPassword &&
+        password &&
+        confirmPassword
       );
+    } else if (mode === "edit" && !changePassword) {
+      return baseValid;
     }
+
+    return baseValid;
   };
 
   const handleSubmit = async (e) => {
@@ -361,8 +386,8 @@ export default function UserModal({ open, mode, user, onClose }) {
       username: true,
       email: true,
       contactNumber: true,
-      password: mode === "add",
-      confirmPassword: mode === "add",
+      password: mode === "add" || (mode === "edit" && changePassword),
+      confirmPassword: mode === "add" || (mode === "edit" && changePassword),
     });
 
     // Validate all fields
@@ -371,6 +396,14 @@ export default function UserModal({ open, mode, user, onClose }) {
     const usernameError = validateUsername(username);
     const emailError = validateEmail(email);
     const contactError = validateContactNumber(contactNumber);
+    const passwordError =
+      mode === "add" || (mode === "edit" && changePassword)
+        ? validatePassword(password)
+        : "";
+    const confirmError =
+      mode === "add" || (mode === "edit" && changePassword)
+        ? validateConfirmPassword(confirmPassword)
+        : "";
 
     setErrors({
       firstName: firstNameError,
@@ -378,9 +411,8 @@ export default function UserModal({ open, mode, user, onClose }) {
       username: usernameError,
       email: emailError,
       contactNumber: contactError,
-      password: mode === "add" ? validatePassword(password) : "",
-      confirmPassword:
-        mode === "add" ? validateConfirmPassword(confirmPassword) : "",
+      password: passwordError,
+      confirmPassword: confirmError,
     });
 
     // Check if there are any errors
@@ -390,10 +422,10 @@ export default function UserModal({ open, mode, user, onClose }) {
       usernameError ||
       emailError ||
       contactError ||
-      (mode === "add" &&
-        (validatePassword(password) ||
-          validateConfirmPassword(confirmPassword)))
+      passwordError ||
+      confirmError
     ) {
+      toast.error("Please fix the validation errors before submitting");
       return;
     }
 
@@ -409,16 +441,27 @@ export default function UserModal({ open, mode, user, onClose }) {
       status,
     };
 
-    if (mode === "add") payload.password = password;
+    // Only include password if it's being changed (add mode or edit with change password)
+    if (mode === "add" || (mode === "edit" && changePassword)) {
+      payload.password = password;
+    }
 
     try {
       setLoading(true);
       if (mode === "add") {
-        await createUser(payload);
-        toast.success("User added successfully");
+        const result = await createUser(payload);
+        if (result.success) {
+          toast.success(result.message || "User added successfully");
+        } else {
+          throw new Error(result.error);
+        }
       } else {
-        await updateUser(user._id, payload);
-        toast.success("User updated successfully");
+        const result = await updateUser(user._id, payload);
+        if (result.success) {
+          toast.success(result.message || "User updated successfully");
+        } else {
+          throw new Error(result.error);
+        }
       }
       await fetchUsers();
       onClose();
@@ -448,7 +491,7 @@ export default function UserModal({ open, mode, user, onClose }) {
           <motion.div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <div className="text-sm font-semibold text-gray-900">
-                {mode === "add" ? "Add User" : "Edit User"}
+                {mode === "add" ? "Add Staff User" : "Edit Staff User"}
               </div>
               <button
                 type="button"
@@ -535,6 +578,11 @@ export default function UserModal({ open, mode, user, onClose }) {
                       {errors.username}
                     </p>
                   )}
+                  {touched.username && !errors.username && username && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      {username.length}/16 characters
+                    </p>
+                  )}
                 </div>
 
                 {/* Email */}
@@ -563,7 +611,8 @@ export default function UserModal({ open, mode, user, onClose }) {
                     value={contactNumber}
                     onChange={handleContactNumberChange}
                     onBlur={() => handleBlur("contactNumber")}
-                    placeholder="Contact Number"
+                    placeholder="Contact Number (09XXXXXXXXX)"
+                    maxLength={11}
                     className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 ${
                       touched.contactNumber && errors.contactNumber
                         ? "border-red-300 focus:border-red-300"
@@ -602,78 +651,117 @@ export default function UserModal({ open, mode, user, onClose }) {
                     </option>
                   ))}
                 </select>
-
-                {/* Password fields - only for add mode */}
-                {mode === "add" && (
-                  <>
-                    {/* Password */}
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={handlePasswordChange}
-                        onBlur={() => handleBlur("password")}
-                        placeholder="Password"
-                        className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 pr-10 ${
-                          touched.password && errors.password
-                            ? "border-red-300 focus:border-red-300"
-                            : "border-gray-200 focus:border-[#0c2bfc]"
-                        }`}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-2 text-gray-500 hover:text-[#0c2bfc] transition-colors"
-                      >
-                        {showPassword ? (
-                          <FiEyeOff size={18} />
-                        ) : (
-                          <FiEye size={18} />
-                        )}
-                      </button>
-                      {touched.password && errors.password && (
-                        <p className="mt-1 text-xs text-red-500">
-                          {errors.password}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Confirm Password */}
-                    <div className="relative">
-                      <input
-                        type={showConfirm ? "text" : "password"}
-                        value={confirmPassword}
-                        onChange={handleConfirmPasswordChange}
-                        onBlur={() => handleBlur("confirmPassword")}
-                        placeholder="Confirm Password"
-                        className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 pr-10 ${
-                          touched.confirmPassword && errors.confirmPassword
-                            ? "border-red-300 focus:border-red-300"
-                            : "border-gray-200 focus:border-[#0c2bfc]"
-                        }`}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirm(!showConfirm)}
-                        className="absolute right-3 top-2 text-gray-500 hover:text-[#0c2bfc] transition-colors"
-                      >
-                        {showConfirm ? (
-                          <FiEyeOff size={18} />
-                        ) : (
-                          <FiEye size={18} />
-                        )}
-                      </button>
-                      {touched.confirmPassword && errors.confirmPassword && (
-                        <p className="mt-1 text-xs text-red-500">
-                          {errors.confirmPassword}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
               </div>
+
+              {/* Password change section - for edit mode */}
+              {mode === "edit" && (
+                <div className="border-t border-gray-200 pt-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setChangePassword(!changePassword)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-all duration-200 ${
+                        changePassword
+                          ? "bg-[#0c2bfc] text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      <FiLock size={14} />
+                      {changePassword
+                        ? "Cancel Password Change"
+                        : "Change Password"}
+                    </button>
+                    {changePassword && (
+                      <span className="text-xs text-gray-500">
+                        Set a new password for this user
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Password fields - for add mode OR edit mode with changePassword enabled */}
+              {(mode === "add" || (mode === "edit" && changePassword)) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Password */}
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={handlePasswordChange}
+                      onBlur={() => handleBlur("password")}
+                      placeholder={mode === "add" ? "Password" : "New Password"}
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 pr-10 ${
+                        touched.password && errors.password
+                          ? "border-red-300 focus:border-red-300"
+                          : "border-gray-200 focus:border-[#0c2bfc]"
+                      }`}
+                      required={mode === "add"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-2 text-gray-500 hover:text-[#0c2bfc] transition-colors"
+                    >
+                      {showPassword ? (
+                        <FiEyeOff size={18} />
+                      ) : (
+                        <FiEye size={18} />
+                      )}
+                    </button>
+                    {touched.password && errors.password && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.password}
+                      </p>
+                    )}
+                    {touched.password && !errors.password && password && (
+                      <p className="mt-1 text-xs text-green-500">
+                        ✓ Password meets requirements
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="relative">
+                    <input
+                      type={showConfirm ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={handleConfirmPasswordChange}
+                      onBlur={() => handleBlur("confirmPassword")}
+                      placeholder="Confirm Password"
+                      className={`w-full rounded-xl border bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 transition-colors duration-200 pr-10 ${
+                        touched.confirmPassword && errors.confirmPassword
+                          ? "border-red-300 focus:border-red-300"
+                          : "border-gray-200 focus:border-[#0c2bfc]"
+                      }`}
+                      required={mode === "add"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirm(!showConfirm)}
+                      className="absolute right-3 top-2 text-gray-500 hover:text-[#0c2bfc] transition-colors"
+                    >
+                      {showConfirm ? (
+                        <FiEyeOff size={18} />
+                      ) : (
+                        <FiEye size={18} />
+                      )}
+                    </button>
+                    {touched.confirmPassword && errors.confirmPassword && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {errors.confirmPassword}
+                      </p>
+                    )}
+                    {touched.confirmPassword &&
+                      !errors.confirmPassword &&
+                      confirmPassword && (
+                        <p className="mt-1 text-xs text-green-500">
+                          ✓ Passwords match
+                        </p>
+                      )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2">
                 <button
@@ -693,7 +781,14 @@ export default function UserModal({ open, mode, user, onClose }) {
                       : "bg-[#0c2bfc] hover:bg-[#0a24d6]"
                   }`}
                 >
-                  {mode === "add" ? "Add User" : "Save Changes"}
+                  {loading ? (
+                    <>
+                      <Loader size={20} variant="white" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>{mode === "add" ? "Add User" : "Save Changes"}</>
+                  )}
                 </button>
               </div>
             </form>

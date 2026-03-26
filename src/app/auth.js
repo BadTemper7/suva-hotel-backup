@@ -21,10 +21,10 @@ export function getToken() {
 export function setUser(user) {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
-
 export function getUser() {
   const u = localStorage.getItem(USER_KEY);
-  return u ? JSON.parse(u) : null;
+  const user = JSON.parse(u);
+  return user?.user;
 }
 
 export function getUserRole() {
@@ -32,6 +32,18 @@ export function getUserRole() {
   return user?.role ?? null;
 }
 
+export function isAdmin() {
+  if (getUserRole() === "admin") return true;
+  return;
+}
+export function isSuperAdmin() {
+  if (getUserRole() === "superadmin") return true;
+  return;
+}
+export function getUserId() {
+  const user = getUser();
+  return user?._id ?? null;
+}
 export function logout() {
   localStorage.removeItem(KEY);
   localStorage.removeItem(TOKEN_KEY);

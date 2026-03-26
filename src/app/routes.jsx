@@ -23,6 +23,8 @@ const LostFound = lazy(() => import("../pages/LostFound.jsx"));
 const Settings = lazy(() => import("../pages/Settings.jsx"));
 const Profile = lazy(() => import("../pages/Profile.jsx"));
 const Login = lazy(() => import("../pages/Login.jsx"));
+const ForgotPassword = lazy(() => import("../pages/ForgotPassword.jsx"));
+const ResetPassword = lazy(() => import("../pages/ResetPassword.jsx"));
 const NotFound = lazy(() => import("../pages/NotFound.jsx"));
 const Reports = lazy(() => import("../pages/Reports.jsx"));
 const Users = lazy(() => import("../pages/Users.jsx"));
@@ -64,6 +66,14 @@ const withReservationProvider = (el, label) => (
 
 export default [
   { path: "/", element: withLoader(<Login />, "Loading login...") },
+  {
+    path: "/forgot-password",
+    element: withLoader(<ForgotPassword />, "Loading forgot password..."),
+  },
+  {
+    path: "/reset-password",
+    element: withLoader(<ResetPassword />, "Loading reset password..."),
+  },
 
   {
     element: <ProtectedRoute />,

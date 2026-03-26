@@ -25,7 +25,7 @@ export default function IdleLogoutModal() {
   const isTrackingRef = useRef(true); // Track whether we're listening for activity
 
   // Don't do anything if user is not authenticated or is on login page
-  const shouldRun = isAuthed() && !location.pathname.includes("/login");
+  const shouldRun = isAuthed() && !location.pathname.includes("/");
 
   const startCountdown = () => {
     if (!shouldRun) return;

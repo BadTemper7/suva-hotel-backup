@@ -12,9 +12,9 @@ export default function Header() {
         </div>
 
         {/* Add relative container for search dropdown */}
-        <div className="hidden lg:block relative">
+        {/* <div className="hidden lg:block relative">
           <SearchBar />
-        </div>
+        </div> */}
 
         <div className="flex items-center gap-2">
           <NotificationsMenu />
@@ -24,9 +24,9 @@ export default function Header() {
       </div>
 
       {/* Mobile search with proper container */}
-      <div className="relative px-4 sm:px-6 pb-3 lg:hidden">
+      {/* <div className="relative px-4 sm:px-6 pb-3 lg:hidden">
         <SearchBar />
-      </div>
+      </div> */}
 
       {/* Decorative header accent */}
       <div className="absolute top-0 left-0 right-0 h-1 bg-[#0c2bfc]"></div>

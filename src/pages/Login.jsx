@@ -1,8 +1,9 @@
+// src/pages/Login.jsx
 import { useMemo, useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate, Link } from "react-router-dom";
 import { setAuthed, setToken, isAuthed, setUser } from "../app/auth.js";
 import Loader from "../components/layout/Loader.jsx";
-import { FiEye, FiEyeOff } from "react-icons/fi";
+import { FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 import { LogoVariations } from "../components/layout/Logo.jsx";
 
 const API_URL =
@@ -64,7 +65,7 @@ export default function Login() {
 
       setToken(data.token);
       setAuthed(true);
-      setUser(data);
+      setUser(data.user);
       navigate(from, { replace: true });
     } catch (err) {
       setError(err.message);
@@ -75,7 +76,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white p-6">
-      {/* Background decorative elements with primary/secondary colors */}
+      {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-20 -left-20 w-64 h-64 bg-gradient-to-br from-[#0c2bfc]/5 to-[#00af00]/5 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-gradient-to-tl from-[#0c2bfc]/5 to-[#00af00]/5 rounded-full blur-3xl"></div>
@@ -84,7 +85,7 @@ export default function Login() {
 
       <div className="relative z-10 w-full max-w-md">
         <div className="bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden">
-          {/* Header with decorative top using primary color */}
+          {/* Header */}
           <div className="relative px-6 py-5 bg-gray-50 border-b border-gray-200">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#0c2bfc] to-[#00af00]"></div>
             <div className="flex flex-col items-center mb-4">
@@ -103,12 +104,12 @@ export default function Login() {
           {/* Form */}
           <form onSubmit={onSubmit} className="px-6 py-6 space-y-5">
             {error && (
-              <div className="text-[#00af00] text-sm bg-[#00af00]/5 border border-[#00af00]/20 px-4 py-3 rounded-lg">
+              <div className="text-red-500 text-sm bg-red-50 border border-red-200 px-4 py-3 rounded-lg">
                 {error}
               </div>
             )}
 
-            {/* Decorative element using primary/secondary colors */}
+            {/* Decorative element */}
             <div className="flex justify-center">
               <div className="relative">
                 <div className="absolute w-16 h-16 bg-gradient-to-br from-[#0c2bfc]/20 to-[#00af00]/20 rounded-full blur-md opacity-60"></div>
@@ -170,6 +171,17 @@ export default function Login() {
               </div>
             </div>
 
+            {/* Forgot Password Link */}
+            <div className="flex justify-end">
+              <Link
+                to="/forgot-password"
+                className="text-sm text-[#0c2bfc] hover:text-[#00af00] transition-colors flex items-center gap-1"
+              >
+                <FiLock size={14} />
+                Forgot Password?
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
@@ -215,7 +227,7 @@ export default function Login() {
                   clipRule="evenodd"
                 />
               </svg>
-              <span>© {new Date().getFullYear()} Suva&apos;s Place Resort</span>
+              <span>© {new Date().getFullYear()} Suva's Place Resort</span>
               <span className="text-[#0c2bfc]">•</span>
               <span>Est. 1971</span>
             </div>
