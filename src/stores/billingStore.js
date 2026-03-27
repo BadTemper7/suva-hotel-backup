@@ -40,6 +40,28 @@ export const useBillingStore = create((set, get) => ({
   loading: false,
   error: "",
 
+  processRefund: async (billingId, data = {}) => {
+    set({ loading: true, error: "" });
+    try {
+      const res = await fetch(`${API}/billings/${billingId}/refund`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      const result = await safeJson(res);
+
+      set({ loading: false });
+      return result;
+    } catch (err) {
+      set({
+        loading: false,
+        error: err?.message || "Failed to process refund",
+      });
+      throw err;
+    }
+  },
   fetchBillings: async (query = {}) => {
     set({ loading: true, error: "" });
     try {

@@ -9,6 +9,7 @@ import {
   FiEdit,
   FiFilter,
   FiPrinter,
+  FiRefreshCw,
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,7 @@ import ViewDiscountImagesModal from "../components/modals/ViewDiscountImagesModa
 import UploadDiscountImageModal from "../components/modals/UploadDiscountImageModal.jsx";
 import EditBillingModal from "../components/modals/EditBillingModal.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
+import RefundConfirmationModal from "../components/modals/RefundConfirmationModal.jsx";
 
 const STATUS_STYLES = {
   unpaid: "bg-red-100 text-red-700",
@@ -81,10 +83,12 @@ function BillingCard({
   onEdit,
   onViewDiscounts,
   onUploadDiscount,
+  onRefund,
 }) {
   const guest = billing?.reservationId?.guestId;
   const guestName = guest ? `${guest.firstName} ${guest.lastName}` : "—";
   const isPaid = billing.status === "paid";
+  const isRefunded = billing.status === "refunded";
   const recent = isRecentBilling(billing.createdAt);
   const hasDiscount = billing.discountAmount > 0;
 
@@ -179,24 +183,6 @@ function BillingCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        {/* <button
-          type="button"
-          onClick={() => onEdit(billing)}
-          className="
-            h-10 px-4 rounded-xl 
-            border border-gray-200 
-            bg-white
-            hover:bg-gray-50
-            text-sm font-medium inline-flex items-center gap-2
-            transition-all duration-200
-            hover:shadow-md hover:-translate-y-0.5
-            active:translate-y-0
-            text-gray-700 hover:text-[#0c2bfc]
-          "
-        >
-          <FiEdit className="w-4 h-4" /> Edit
-        </button> */}
-
         <button
           type="button"
           onClick={() => onViewDiscounts(billing)}
@@ -234,6 +220,28 @@ function BillingCard({
           View Receipt
         </button>
 
+        {/* Refund Button - Only show for eligible billings (not refunded, not paid, has payment) */}
+        {!isRefunded && !isPaid && billing.amountPaid > 0 && (
+          <button
+            type="button"
+            onClick={() => onRefund(billing)}
+            className="
+              h-10 px-4 rounded-xl 
+              border border-gray-200 
+              bg-white
+              hover:bg-gray-50
+              text-sm font-medium inline-flex items-center gap-2
+              transition-all duration-200
+              hover:shadow-md hover:-translate-y-0.5
+              active:translate-y-0
+              text-gray-700 hover:text-red-600
+            "
+          >
+            <FiRefreshCw className="w-4 h-4" />
+            Refund
+          </button>
+        )}
+
         {isPaid ? (
           <span
             className="
@@ -245,6 +253,18 @@ function BillingCard({
           "
           >
             <FiUpload className="w-4 h-4" /> Uploaded
+          </span>
+        ) : isRefunded ? (
+          <span
+            className="
+            h-10 px-4 rounded-xl 
+            border border-gray-200 
+            bg-purple-100
+            text-sm font-medium inline-flex items-center justify-center gap-2
+            text-purple-700
+          "
+          >
+            <FiRefreshCw className="w-4 h-4" /> Refunded
           </span>
         ) : (
           <button
@@ -266,31 +286,6 @@ function BillingCard({
             Upload Receipt
           </button>
         )}
-        {/* <button
-          type="button"
-          onClick={() => {
-            const billingStore = useBillingStore.getState();
-            billingStore
-              .printReceipt(billing._id)
-              .catch((err) =>
-                toast.error(err.message || "Failed to print receipt"),
-              );
-          }}
-          className="
-            h-10 px-4 rounded-xl 
-            border border-gray-200 
-            bg-white
-            hover:bg-gray-50
-            text-sm font-medium inline-flex items-center gap-2
-            transition-all duration-200
-            hover:shadow-md hover:-translate-y-0.5
-            active:translate-y-0
-            text-gray-700 hover:text-[#0c2bfc]
-          "
-          title="Print Receipt"
-        >
-          <FiPrinter className="w-4 h-4" />
-        </button> */}
       </div>
     </div>
   );
@@ -298,6 +293,21 @@ function BillingCard({
 
 export default function Billing() {
   const navigate = useNavigate();
+  const [refundModal, setRefundModal] = useState({
+    open: false,
+    billing: null,
+  });
+  const openRefundModal = (billing) => setRefundModal({ open: true, billing });
+  const closeRefundModal = () => setRefundModal({ open: false, billing: null });
+  const handleRefundSuccess = async () => {
+    try {
+      await fetchBillings();
+      toast.success("Refund processed successfully");
+      closeRefundModal();
+    } catch (err) {
+      toast.error(err.message || "Failed to refresh billing data");
+    }
+  };
 
   const billingState = useBillingStore((s) => s.billings);
   const billings = Array.isArray(billingState)
@@ -607,6 +617,7 @@ export default function Billing() {
             onEdit={openEditModal}
             onViewDiscounts={openViewDiscountImagesModal}
             onUploadDiscount={openUploadDiscountModal}
+            onRefund={openRefundModal}
           />
         ))}
         {paged.length === 0 && (
@@ -837,16 +848,16 @@ export default function Billing() {
                           type="button"
                           onClick={() => openViewDiscountImagesModal(b)}
                           className="
-                            h-10 w-10 rounded-xl 
-                            border border-gray-200 
-                            bg-white
-                            hover:bg-gray-50
-                            grid place-items-center
-                            transition-all duration-200
-                            hover:shadow-md hover:-translate-y-0.5
-                            active:translate-y-0
-                            text-gray-700 hover:text-[#0c2bfc]
-                          "
+        h-10 w-10 rounded-xl 
+        border border-gray-200 
+        bg-white
+        hover:bg-gray-50
+        grid place-items-center
+        transition-all duration-200
+        hover:shadow-md hover:-translate-y-0.5
+        active:translate-y-0
+        text-gray-700 hover:text-[#0c2bfc]
+      "
                           title="View Discount Images"
                         >
                           <FiTag className="w-4 h-4" />
@@ -856,49 +867,84 @@ export default function Billing() {
                           type="button"
                           onClick={() => openViewReceiptsModal(b)}
                           className="
-                            h-10 w-10 rounded-xl 
-                            border border-gray-200 
-                            bg-white
-                            hover:bg-gray-50
-                            grid place-items-center
-                            transition-all duration-200
-                            hover:shadow-md hover:-translate-y-0.5
-                            active:translate-y-0
-                            text-gray-700 hover:text-[#0c2bfc]
-                          "
+        h-10 w-10 rounded-xl 
+        border border-gray-200 
+        bg-white
+        hover:bg-gray-50
+        grid place-items-center
+        transition-all duration-200
+        hover:shadow-md hover:-translate-y-0.5
+        active:translate-y-0
+        text-gray-700 hover:text-[#0c2bfc]
+      "
                           title="View Receipts"
                         >
                           <FiEye className="w-4 h-4" />
                         </button>
 
+                        {/* Refund Button - Only for eligible billings */}
+                        {b.isRefundable && (
+                          <button
+                            type="button"
+                            onClick={() => openRefundModal(b)}
+                            className="
+          h-10 w-10 rounded-xl 
+          border border-gray-200 
+          bg-white
+          hover:bg-gray-50
+          grid place-items-center
+          transition-all duration-200
+          hover:shadow-md hover:-translate-y-0.5
+          active:translate-y-0
+          text-gray-700 hover:text-red-600
+        "
+                            title="Process Refund"
+                          >
+                            <FiRefreshCw className="w-4 h-4" />
+                          </button>
+                        )}
+
                         {isPaid ? (
                           <span
                             className="
-                              h-10 w-10 rounded-xl 
-                              border border-gray-200 
-                              bg-[#00af00]/10
-                              grid place-items-center
-                              text-[#00af00] cursor-not-allowed
-                            "
+          h-10 w-10 rounded-xl 
+          border border-gray-200 
+          bg-[#00af00]/10
+          grid place-items-center
+          text-[#00af00] cursor-not-allowed
+        "
                             title="Already Paid"
                           >
                             <FiUpload className="w-4 h-4" />
+                          </span>
+                        ) : b.status === "refunded" ? (
+                          <span
+                            className="
+          h-10 w-10 rounded-xl 
+          border border-gray-200 
+          bg-purple-100
+          grid place-items-center
+          text-purple-700 cursor-not-allowed
+        "
+                            title="Already Refunded"
+                          >
+                            <FiRefreshCw className="w-4 h-4" />
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => openUploadModal(b)}
                             className="
-                              h-10 w-10 rounded-xl 
-                              border border-gray-200 
-                              bg-white
-                              hover:bg-gray-50
-                              grid place-items-center
-                              transition-all duration-200
-                              hover:shadow-md hover:-translate-y-0.5
-                              active:translate-y-0
-                              text-gray-700 hover:text-[#0c2bfc]
-                            "
+          h-10 w-10 rounded-xl 
+          border border-gray-200 
+          bg-white
+          hover:bg-gray-50
+          grid place-items-center
+          transition-all duration-200
+          hover:shadow-md hover:-translate-y-0.5
+          active:translate-y-0
+          text-gray-700 hover:text-[#0c2bfc]
+        "
                             title="Upload Receipt"
                           >
                             <FiUpload className="w-4 h-4" />
@@ -980,14 +1026,6 @@ export default function Billing() {
         />
       )}
 
-      {uploadDiscountModal.open && (
-        <UploadDiscountImageModal
-          open={uploadDiscountModal.open}
-          onClose={closeUploadDiscountModal}
-          billing={uploadDiscountModal.billing}
-          onSuccess={handleDiscountSuccess}
-        />
-      )}
       {/* Upload Discount Image Modal */}
       {uploadDiscountModal.open && (
         <UploadDiscountImageModal
@@ -1007,6 +1045,14 @@ export default function Billing() {
           onSave={handleEditBilling}
         />
       )}
+
+      {/* Refund Confirmation Modal */}
+      <RefundConfirmationModal
+        open={refundModal.open}
+        onClose={closeRefundModal}
+        billing={refundModal.billing}
+        onSuccess={handleRefundSuccess}
+      />
 
       {/* Loader overlay */}
       {loading && (
