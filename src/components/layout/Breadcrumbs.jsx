@@ -48,21 +48,25 @@ export default function Breadcrumbs() {
     "discount-types",
   ].includes(actualSegments[0]);
 
-  // Check for reservation detail pages
+  // Check for reservation detail pages with ID
+  const isReservationWithId =
+    actualSegments.length >= 2 &&
+    actualSegments[0] === "reservations" &&
+    actualSegments[1] &&
+    actualSegments[1].length === 24; // MongoDB ObjectId length
+
+  // Check for specific sub-pages under a reservation
   const isRoomReservation =
     actualSegments.length >= 3 &&
     actualSegments[0] === "reservations" &&
-    actualSegments[1] !== undefined &&
     actualSegments[2] === "rooms";
   const isAmenityReservation =
     actualSegments.length >= 3 &&
     actualSegments[0] === "reservations" &&
-    actualSegments[1] !== undefined &&
     actualSegments[2] === "amenities";
   const isAddOnReservation =
     actualSegments.length >= 3 &&
     actualSegments[0] === "reservations" &&
-    actualSegments[1] !== undefined &&
     actualSegments[2] === "add-ons";
 
   let crumbs = [];
@@ -72,44 +76,39 @@ export default function Breadcrumbs() {
     crumbs.push({ to: "/dashboard", label: "Dashboard" });
   }
 
-  // Handle reservation detail pages first
+  // Handle reservation sub-pages (rooms, amenities, add-ons)
   if (isRoomReservation) {
-    const reservationId = actualSegments[1];
     crumbs.push(
       { to: "/reservations", label: "Reservations" },
       {
-        to: `/reservations/${reservationId}`,
-        label: `Reservation #${reservationId.slice(-6)}`,
-      },
-      {
-        to: `/reservations/${reservationId}/rooms`,
+        to: `/reservations/${actualSegments[1]}/rooms`,
         label: "Add Rooms",
       },
     );
   } else if (isAmenityReservation) {
-    const reservationId = actualSegments[1];
     crumbs.push(
       { to: "/reservations", label: "Reservations" },
       {
-        to: `/reservations/${reservationId}`,
-        label: `Reservation #${reservationId.slice(-6)}`,
-      },
-      {
-        to: `/reservations/${reservationId}/amenities`,
+        to: `/reservations/${actualSegments[1]}/amenities`,
         label: "Manage Amenities",
       },
     );
   } else if (isAddOnReservation) {
-    const reservationId = actualSegments[1];
     crumbs.push(
       { to: "/reservations", label: "Reservations" },
       {
-        to: `/reservations/${reservationId}`,
-        label: `Reservation #${reservationId.slice(-6)}`,
-      },
-      {
-        to: `/reservations/${reservationId}/add-ons`,
+        to: `/reservations/${actualSegments[1]}/add-ons`,
         label: "Manage Add-Ons",
+      },
+    );
+  }
+  // Handle reservation detail page (just the reservation ID in URL)
+  else if (isReservationWithId && actualSegments.length === 2) {
+    crumbs.push(
+      { to: "/reservations", label: "Reservations" },
+      {
+        to: `/reservations/${actualSegments[1]}`,
+        label: "Reservation Details",
       },
     );
   }
@@ -160,8 +159,36 @@ export default function Breadcrumbs() {
   }
   // Handle top-level pages
   else if (actualSegments.length > 0) {
-    actualSegments.forEach((seg, i) => {
-      const to = "/" + actualSegments.slice(0, i + 1).join("/");
+    // Skip the reservation ID if it's a detail page
+    const filteredSegments = actualSegments.filter((seg, index) => {
+      // Skip if it's a reservation ID (24-character hex string) and not the last segment
+      if (
+        actualSegments[0] === "reservations" &&
+        index === 1 &&
+        seg.length === 24
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    filteredSegments.forEach((seg, i) => {
+      // Reconstruct the actual path for the link
+      let to;
+      if (
+        actualSegments[0] === "reservations" &&
+        actualSegments[1] &&
+        actualSegments[1].length === 24
+      ) {
+        // If we have a reservation ID in the actual path, include it in the link
+        if (i === 0) {
+          to = "/" + seg;
+        } else {
+          to = "/" + actualSegments.slice(0, 2).join("/") + "/" + seg;
+        }
+      } else {
+        to = "/" + actualSegments.slice(0, i + 1).join("/");
+      }
 
       // Skip if it's dashboard (already handled)
       if (seg === "dashboard") return;

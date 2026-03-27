@@ -179,7 +179,7 @@ function BillingCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        <button
+        {/* <button
           type="button"
           onClick={() => onEdit(billing)}
           className="
@@ -195,7 +195,7 @@ function BillingCard({
           "
         >
           <FiEdit className="w-4 h-4" /> Edit
-        </button>
+        </button> */}
 
         <button
           type="button"
@@ -231,6 +231,7 @@ function BillingCard({
           "
         >
           <FiEye className="w-4 h-4" />
+          View Receipt
         </button>
 
         {isPaid ? (
@@ -243,7 +244,7 @@ function BillingCard({
             text-[#00af00]
           "
           >
-            <FiUpload className="w-4 h-4" />
+            <FiUpload className="w-4 h-4" /> Uploaded
           </span>
         ) : (
           <button
@@ -262,9 +263,10 @@ function BillingCard({
             "
           >
             <FiUpload className="w-4 h-4" />
+            Upload Receipt
           </button>
         )}
-        <button
+        {/* <button
           type="button"
           onClick={() => {
             const billingStore = useBillingStore.getState();
@@ -288,7 +290,7 @@ function BillingCard({
           title="Print Receipt"
         >
           <FiPrinter className="w-4 h-4" />
-        </button>
+        </button> */}
       </div>
     </div>
   );

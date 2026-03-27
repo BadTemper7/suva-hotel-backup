@@ -1182,78 +1182,88 @@ const Reports = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {data.allOutstanding?.map((billing) => (
-                  <tr
-                    key={billing._id}
-                    className="hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    <td className="px-6 py-4 font-medium text-gray-900">
-                      {billing.billingNumber}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="font-medium text-gray-900">
-                        {billing.reservationId?.reservationNumber}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {billing.reservationId?.guestId?.firstName}{" "}
-                          {billing.reservationId?.guestId?.lastName}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {billing.reservationId?.guestId?.email}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center text-sm">
-                          <FiCalendar
-                            className="mr-2 text-gray-400"
-                            size={14}
-                          />
-                          <span className="text-gray-700">
-                            {format(
-                              new Date(billing.reservationId?.checkIn),
-                              "MMM dd, yyyy",
-                            )}
-                          </span>
+                {data.allOutstanding?.map((billing) => {
+                  // Safely format dates with validation
+                  const formatDateSafely = (dateString) => {
+                    if (!dateString) return "N/A";
+                    try {
+                      const date = new Date(dateString);
+                      if (isNaN(date.getTime())) return "Invalid Date";
+                      return format(date, "MMM dd, yyyy");
+                    } catch (error) {
+                      return "Invalid Date";
+                    }
+                  };
+
+                  return (
+                    <tr
+                      key={billing._id}
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {billing.billingNumber}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-medium text-gray-900">
+                          {billing.reservationId?.reservationNumber || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {billing.reservationId?.guestId?.firstName || ""}{" "}
+                            {billing.reservationId?.guestId?.lastName || ""}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {billing.reservationId?.guestId?.email || "N/A"}
+                          </p>
                         </div>
-                        <div className="flex items-center text-sm">
-                          <FiChevronRight
-                            className="mr-2 text-gray-400"
-                            size={14}
-                          />
-                          <span className="text-gray-700">
-                            {format(
-                              new Date(billing.reservationId?.checkOut),
-                              "MMM dd, yyyy",
-                            )}
-                          </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center text-sm">
+                            <FiCalendar
+                              className="mr-2 text-gray-400"
+                              size={14}
+                            />
+                            <span className="text-gray-700">
+                              {formatDateSafely(billing.reservationId?.checkIn)}
+                            </span>
+                          </div>
+                          <div className="flex items-center text-sm">
+                            <FiChevronRight
+                              className="mr-2 text-gray-400"
+                              size={14}
+                            />
+                            <span className="text-gray-700">
+                              {formatDateSafely(
+                                billing.reservationId?.checkOut,
+                              )}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-gray-700">
-                        {formatCurrency(billing.totalAmount)}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-[#00af00] font-medium">
-                        {formatCurrency(billing.amountPaid)}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                        {formatCurrency(billing.balance)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={billing.status} />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-gray-700">
+                          {formatCurrency(billing.totalAmount)}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-[#00af00] font-medium">
+                          {formatCurrency(billing.amountPaid)}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          {formatCurrency(billing.balance)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={billing.status} />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
