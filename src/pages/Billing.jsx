@@ -18,6 +18,8 @@ import { useBillingStore } from "../stores/billingStore.js";
 import { getUserRole } from "../app/auth.js";
 import ReceiptUploadModal from "../components/modals/ReceiptUploadModal.jsx";
 import ViewReceiptsModal from "../components/modals/ViewReceiptsModal.jsx";
+import ViewDiscountImagesModal from "../components/modals/ViewDiscountImagesModal.jsx";
+import UploadDiscountImageModal from "../components/modals/UploadDiscountImageModal.jsx";
 import EditBillingModal from "../components/modals/EditBillingModal.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 
@@ -72,11 +74,19 @@ function isRecentBilling(createdAt) {
   return diffInHours <= 24;
 }
 
-function BillingCard({ billing, onUpload, onView, onEdit }) {
+function BillingCard({
+  billing,
+  onUpload,
+  onView,
+  onEdit,
+  onViewDiscounts,
+  onUploadDiscount,
+}) {
   const guest = billing?.reservationId?.guestId;
   const guestName = guest ? `${guest.firstName} ${guest.lastName}` : "—";
   const isPaid = billing.status === "paid";
   const recent = isRecentBilling(billing.createdAt);
+  const hasDiscount = billing.discountAmount > 0;
 
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
@@ -145,6 +155,17 @@ function BillingCard({ billing, onUpload, onView, onEdit }) {
           </div>
         </div>
 
+        {hasDiscount && (
+          <div className="mb-3">
+            <div className="inline-flex items-center gap-1 px-2 py-1 bg-[#00af00]/10 rounded-lg">
+              <FiTag className="text-[#00af00]" size={12} />
+              <span className="text-xs font-semibold text-[#00af00]">
+                Discount: {money(billing.discountAmount)}
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <StatusPill value={billing.status} />
           <div className="text-xs text-gray-500">
@@ -174,6 +195,24 @@ function BillingCard({ billing, onUpload, onView, onEdit }) {
           "
         >
           <FiEdit className="w-4 h-4" /> Edit
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onViewDiscounts(billing)}
+          className="
+            h-10 px-4 rounded-xl 
+            border border-gray-200 
+            bg-white
+            hover:bg-gray-50
+            text-sm font-medium inline-flex items-center gap-2
+            transition-all duration-200
+            hover:shadow-md hover:-translate-y-0.5
+            active:translate-y-0
+            text-gray-700 hover:text-[#0c2bfc]
+          "
+        >
+          <FiTag className="w-4 h-4" /> Discounts
         </button>
 
         <button
@@ -277,6 +316,14 @@ export default function Billing() {
     open: false,
     billing: null,
   });
+  const [viewDiscountImagesModal, setViewDiscountImagesModal] = useState({
+    open: false,
+    billing: null,
+  });
+  const [uploadDiscountModal, setUploadDiscountModal] = useState({
+    open: false,
+    billing: null,
+  });
   const [editModal, setEditModal] = useState({
     open: false,
     billing: null,
@@ -341,6 +388,16 @@ export default function Billing() {
   const closeViewReceiptsModal = () =>
     setViewReceiptsModal({ open: false, billing: null });
 
+  const openViewDiscountImagesModal = (billing) =>
+    setViewDiscountImagesModal({ open: true, billing });
+  const closeViewDiscountImagesModal = () =>
+    setViewDiscountImagesModal({ open: false, billing: null });
+
+  const openUploadDiscountModal = (billing) =>
+    setUploadDiscountModal({ open: true, billing });
+  const closeUploadDiscountModal = () =>
+    setUploadDiscountModal({ open: false, billing: null });
+
   const openEditModal = (billing) => setEditModal({ open: true, billing });
   const closeEditModal = () => setEditModal({ open: false, billing: null });
 
@@ -359,6 +416,16 @@ export default function Billing() {
       await fetchBillings();
       toast.success("Receipt uploaded successfully");
       closeUploadModal();
+    } catch (err) {
+      toast.error(err.message || "Failed to refresh billing data");
+    }
+  };
+
+  const handleDiscountSuccess = async () => {
+    try {
+      await fetchBillings();
+      toast.success("Discount image uploaded successfully");
+      closeUploadDiscountModal();
     } catch (err) {
       toast.error(err.message || "Failed to refresh billing data");
     }
@@ -536,6 +603,8 @@ export default function Billing() {
             onUpload={openUploadModal}
             onView={openViewReceiptsModal}
             onEdit={openEditModal}
+            onViewDiscounts={openViewDiscountImagesModal}
+            onUploadDiscount={openUploadDiscountModal}
           />
         ))}
         {paged.length === 0 && (
@@ -643,6 +712,9 @@ export default function Billing() {
                   Balance
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                  Discount
+                </th>
+                <th className="text-left font-semibold text-gray-700 px-6 py-4">
                   Status
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
@@ -665,6 +737,7 @@ export default function Billing() {
                   : "—";
                 const isPaid = b.status === "paid";
                 const recent = isRecentBilling(b.createdAt);
+                const hasDiscount = b.discountAmount > 0;
 
                 return (
                   <tr
@@ -724,6 +797,19 @@ export default function Billing() {
                     </td>
 
                     <td className="px-6 py-4">
+                      {hasDiscount ? (
+                        <span className="inline-flex items-center gap-1 text-[#00af00]">
+                          <FiTag size={14} />
+                          <span className="text-sm font-semibold">
+                            {money(b.discountAmount)}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-sm">—</span>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-4">
                       <StatusPill value={b.status} />
                     </td>
 
@@ -747,18 +833,38 @@ export default function Billing() {
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => openViewReceiptsModal(b)}
+                          onClick={() => openViewDiscountImagesModal(b)}
                           className="
-                            h-10 px-4 rounded-xl 
+                            h-10 w-10 rounded-xl 
                             border border-gray-200 
                             bg-white
                             hover:bg-gray-50
-                            text-sm font-medium inline-flex items-center gap-2
+                            grid place-items-center
                             transition-all duration-200
                             hover:shadow-md hover:-translate-y-0.5
                             active:translate-y-0
                             text-gray-700 hover:text-[#0c2bfc]
                           "
+                          title="View Discount Images"
+                        >
+                          <FiTag className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openViewReceiptsModal(b)}
+                          className="
+                            h-10 w-10 rounded-xl 
+                            border border-gray-200 
+                            bg-white
+                            hover:bg-gray-50
+                            grid place-items-center
+                            transition-all duration-200
+                            hover:shadow-md hover:-translate-y-0.5
+                            active:translate-y-0
+                            text-gray-700 hover:text-[#0c2bfc]
+                          "
+                          title="View Receipts"
                         >
                           <FiEye className="w-4 h-4" />
                         </button>
@@ -766,12 +872,13 @@ export default function Billing() {
                         {isPaid ? (
                           <span
                             className="
-                              h-10 px-4 rounded-xl 
+                              h-10 w-10 rounded-xl 
                               border border-gray-200 
                               bg-[#00af00]/10
-                              text-sm font-medium inline-flex items-center justify-center gap-2
+                              grid place-items-center
                               text-[#00af00] cursor-not-allowed
                             "
+                            title="Already Paid"
                           >
                             <FiUpload className="w-4 h-4" />
                           </span>
@@ -780,16 +887,17 @@ export default function Billing() {
                             type="button"
                             onClick={() => openUploadModal(b)}
                             className="
-                              h-10 px-4 rounded-xl 
+                              h-10 w-10 rounded-xl 
                               border border-gray-200 
                               bg-white
                               hover:bg-gray-50
-                              text-sm font-medium inline-flex items-center gap-2
+                              grid place-items-center
                               transition-all duration-200
                               hover:shadow-md hover:-translate-y-0.5
                               active:translate-y-0
                               text-gray-700 hover:text-[#0c2bfc]
                             "
+                            title="Upload Receipt"
                           >
                             <FiUpload className="w-4 h-4" />
                           </button>
@@ -802,7 +910,7 @@ export default function Billing() {
 
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-16 text-center">
+                  <td colSpan={12} className="px-6 py-16 text-center">
                     <div className="text-gray-300 mb-3">
                       <svg
                         className="w-16 h-16 mx-auto"
@@ -858,6 +966,43 @@ export default function Billing() {
           open={viewReceiptsModal.open}
           onClose={closeViewReceiptsModal}
           billing={viewReceiptsModal.billing}
+        />
+      )}
+
+      {/* View Discount Images Modal */}
+      {viewDiscountImagesModal.open && (
+        <ViewDiscountImagesModal
+          open={viewDiscountImagesModal.open}
+          onClose={closeViewDiscountImagesModal}
+          billing={viewDiscountImagesModal.billing}
+        />
+      )}
+
+      {uploadDiscountModal.open && (
+        <UploadDiscountImageModal
+          open={uploadDiscountModal.open}
+          onClose={closeUploadDiscountModal}
+          billing={uploadDiscountModal.billing}
+          onSuccess={handleDiscountSuccess}
+        />
+      )}
+      {/* Upload Discount Image Modal */}
+      {uploadDiscountModal.open && (
+        <UploadDiscountImageModal
+          open={uploadDiscountModal.open}
+          onClose={closeUploadDiscountModal}
+          billing={uploadDiscountModal.billing}
+          onSuccess={handleDiscountSuccess}
+        />
+      )}
+
+      {/* Edit Billing Modal */}
+      {editModal.open && (
+        <EditBillingModal
+          open={editModal.open}
+          onClose={closeEditModal}
+          billing={editModal.billing}
+          onSave={handleEditBilling}
         />
       )}
 
