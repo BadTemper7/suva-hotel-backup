@@ -31,7 +31,7 @@ export default function RoomModal({ open, mode, room, onClose }) {
   const [imageFiles, setImageFiles] = useState([]);
   const [deletedImageIds, setDeletedImageIds] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
-
+  const [description, setDescription] = useState("");
   // Category options
   const categoryOptions = [
     {
@@ -107,6 +107,7 @@ export default function RoomModal({ open, mode, room, onClose }) {
       setRate(room.rate ?? "");
       setCapacity(room.capacity ?? "");
       setCategory(room.category ?? "room");
+      setDescription(room.description ?? ""); // Add this line
 
       setPreviews(
         room.images?.map((img) => ({
@@ -127,6 +128,7 @@ export default function RoomModal({ open, mode, room, onClose }) {
       setRate("");
       setCapacity("");
       setCategory("room");
+      setDescription(""); // Add this line
       setPreviews([]);
       setImageFiles([]);
       setDeletedImageIds([]);
@@ -241,6 +243,7 @@ export default function RoomModal({ open, mode, room, onClose }) {
       payload.append("rate", rate);
       payload.append("capacity", capacity);
       payload.append("category", category);
+      payload.append("description", description);
 
       // Only append roomType if it's a room
       if (category === "room" && roomType) {
@@ -543,6 +546,29 @@ export default function RoomModal({ open, mode, room, onClose }) {
                       required
                     />
                   </div>
+                </div>
+
+                {/* Description Field - Full width */}
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">
+                    Description
+                    <span className="text-gray-400 ml-1">(Optional)</span>
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200 resize-none"
+                    placeholder={
+                      category === "cottage"
+                        ? "Describe the cottage features, amenities, location, nearby attractions, etc..."
+                        : "Describe the room features, view, amenities, size, bed type, etc..."
+                    }
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Add details to help guests understand what this{" "}
+                    {category === "cottage" ? "cottage" : "room"} offers.
+                  </p>
                 </div>
 
                 {/* Status Selection */}

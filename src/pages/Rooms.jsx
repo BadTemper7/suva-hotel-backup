@@ -97,6 +97,7 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
     }).format(n || 0);
 
   const isCottage = room.category === "cottage";
+  const hasDescription = room.description && room.description.trim().length > 0;
 
   return (
     <div
@@ -144,6 +145,15 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
             ? room.description || "—"
             : room.roomType?.name || room.roomType || "—"}
         </div>
+
+        {/* Add description preview */}
+        {hasDescription && (
+          <div className="mt-2">
+            <p className="text-xs text-gray-500 line-clamp-2">
+              {room.description}
+            </p>
+          </div>
+        )}
 
         <div className="mt-3 grid grid-cols-2 gap-2">
           <div className="flex items-center gap-1 text-xs text-gray-600">
@@ -205,7 +215,6 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
     </div>
   );
 }
-
 export default function Rooms() {
   const navigate = useNavigate();
 
@@ -713,6 +722,9 @@ export default function Rooms() {
                     Category
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Description
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Capacity
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
@@ -784,7 +796,11 @@ export default function Rooms() {
                         {r.category === "cottage" ? "Cottage" : "Room"}
                       </span>
                     </td>
-
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-600 line-clamp-2 max-w-xs">
+                        {r.description || "—"}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="text-gray-700 font-medium">
                         {r.capacity}

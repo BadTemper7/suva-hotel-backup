@@ -1271,7 +1271,7 @@ export default function ReservationProcess() {
             {step === 1 && (
               <Section
                 title="Step 1: Dates and Guests"
-                subtitle="Select check-in/check-out date and time, and number of guests."
+                subtitle="Select your stay dates and number of guests."
                 icon={<FiCalendar />}
                 right={
                   nights > 0 && (
@@ -1285,81 +1285,140 @@ export default function ReservationProcess() {
                 }
               >
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Check In Date - Fixed time 2:00 PM */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
-                      Check In Date & Time *
+                      Check In Date *
                     </label>
-                    <input
-                      type="datetime-local"
-                      min={toISODateTime(new Date())}
-                      value={reservationFormData.checkIn}
-                      onChange={(e) =>
-                        setReservationFormData({
-                          ...reservationFormData,
-                          checkIn: e.target.value,
-                        })
-                      }
-                      className={`
-    mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-    focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-    transition-all duration-200 bg-white
-    ${errors.checkIn ? "border-red-300 bg-red-50" : "border-gray-200"}
-  `}
-                    />
-                    <div className="mt-1 text-xs text-gray-500">
-                      Default check-in time: 2:00 PM
+                    <div>
+                      <input
+                        type="date"
+                        min={(() => {
+                          // Get today's date in YYYY-MM-DD format
+                          const today = new Date();
+                          const year = today.getFullYear();
+                          const month = String(today.getMonth() + 1).padStart(
+                            2,
+                            "0",
+                          );
+                          const day = String(today.getDate()).padStart(2, "0");
+                          return `${year}-${month}-${day}`;
+                        })()}
+                        value={reservationFormData.checkIn.split("T")[0]}
+                        onChange={(e) => {
+                          const newDate = e.target.value;
+                          if (newDate) {
+                            // Check if selected date is today or future
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const selectedDate = new Date(newDate);
+                            selectedDate.setHours(0, 0, 0, 0);
+
+                            if (selectedDate >= today) {
+                              // Always set time to 14:00 (2:00 PM)
+                              const newDateTime = `${newDate}T14:00`;
+                              setReservationFormData({
+                                ...reservationFormData,
+                                checkIn: newDateTime,
+                              });
+                            }
+                          }
+                        }}
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkIn ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#0c2bfc]/10 text-[#0c2bfc]">
+                        <FiClock className="mr-1" size={12} />
+                        Check-in: 2:00 PM
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        (Time is fixed)
+                      </span>
                     </div>
                     <FieldError text={errors.checkIn} />
                   </div>
 
+                  {/* Check Out Date - Fixed time 12:00 NN */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
-                      Check Out Date & Time *
+                      Check Out Date *
                     </label>
-                    <input
-                      type="datetime-local"
-                      min={checkOutMin}
-                      value={reservationFormData.checkOut}
-                      onChange={(e) =>
-                        setReservationFormData({
-                          ...reservationFormData,
-                          checkOut: e.target.value,
-                        })
-                      }
-                      className={`
-                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                        transition-all duration-200 bg-white
-                        ${
-                          errors.checkOut
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-200"
-                        }
-                      `}
-                    />
-                    <div className="mt-1 text-xs text-gray-500">
-                      Default check-out time: 12:00 PM
+                    <div>
+                      <input
+                        type="date"
+                        min={(() => {
+                          // Minimum check-out date is check-in date + 1 day
+                          const checkInDate =
+                            reservationFormData.checkIn.split("T")[0];
+                          if (checkInDate) {
+                            const nextDay = new Date(checkInDate);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            const year = nextDay.getFullYear();
+                            const month = String(
+                              nextDay.getMonth() + 1,
+                            ).padStart(2, "0");
+                            const day = String(nextDay.getDate()).padStart(
+                              2,
+                              "0",
+                            );
+                            return `${year}-${month}-${day}`;
+                          }
+                          // Default: tomorrow
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          const year = tomorrow.getFullYear();
+                          const month = String(
+                            tomorrow.getMonth() + 1,
+                          ).padStart(2, "0");
+                          const day = String(tomorrow.getDate()).padStart(
+                            2,
+                            "0",
+                          );
+                          return `${year}-${month}-${day}`;
+                        })()}
+                        value={reservationFormData.checkOut.split("T")[0]}
+                        onChange={(e) => {
+                          const newDate = e.target.value;
+                          if (newDate) {
+                            // Always set time to 12:00 (12:00 PM)
+                            const newDateTime = `${newDate}T12:00`;
+                            setReservationFormData({
+                              ...reservationFormData,
+                              checkOut: newDateTime,
+                            });
+                          }
+                        }}
+                        className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkOut ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#0c2bfc]/10 text-[#0c2bfc]">
+                        <FiClock className="mr-1" size={12} />
+                        Check-out: 12:00 PM
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        (Time is fixed)
+                      </span>
                     </div>
                     <FieldError text={errors.checkOut} />
                   </div>
 
+                  {/* Adults */}
                   <div>
                     <NumberInput
                       label="Adults *"
                       value={reservationFormData.adults}
-                      onChange={(newValue) => {
+                      onChange={(newValue) =>
                         setReservationFormData({
                           ...reservationFormData,
                           adults: newValue,
-                        });
-                        setMaxRooms(calculateMaxRooms(newValue));
-                      }}
+                        })
+                      }
                       min={1}
                       max={99}
                       step={1}
-                      description="Maximum items allowed based on adults:"
                       error={errors.adults}
-                      className={`${errors.adults ? "border-red-300" : ""}`}
                     />
                     <div className="mt-1 text-xs text-gray-500">
                       Maximum items allowed:{" "}
@@ -1367,6 +1426,7 @@ export default function ReservationProcess() {
                     </div>
                   </div>
 
+                  {/* Children */}
                   <div>
                     <NumberInput
                       label="Children"
@@ -1382,11 +1442,11 @@ export default function ReservationProcess() {
                       step={1}
                       description="Ages 2-12 years"
                       error={errors.children}
-                      className={`${errors.children ? "border-red-300" : ""}`}
                     />
                   </div>
                 </div>
 
+                {/* Notes */}
                 <div className="mt-4">
                   <label className="text-sm font-medium text-gray-700">
                     Notes (Optional)
@@ -1399,12 +1459,7 @@ export default function ReservationProcess() {
                         notes: e.target.value,
                       })
                     }
-                    className="
-                      mt-1 w-full min-h-[80px] rounded-xl border border-gray-200 
-                      bg-white px-4 py-3 text-sm 
-                      outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                      transition-all duration-200
-                    "
+                    className="mt-1 w-full min-h-[80px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200"
                     placeholder="Any special requests or notes..."
                   />
                 </div>
