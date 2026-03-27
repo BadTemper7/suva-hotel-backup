@@ -5,6 +5,8 @@ import {
   FiChevronLeft,
   FiChevronRight,
   FiPlus,
+  FiMinus, // Add this
+  FiImage, // Add this
   FiTrash2,
   FiUploadCloud,
   FiX,
@@ -30,6 +32,7 @@ import { usePaymentStore } from "../stores/paymentStore.js";
 import { useGuestStore } from "../stores/guestStore.js";
 import NumberInput from "../components/ui/NumberInput.jsx";
 import Stepper from "../components/ui/NumberInput.jsx";
+import ImagePreviewModal from "../components/modals/ImagePreviewModal.jsx";
 
 // Get admin info from localStorage
 const admin_info = JSON.parse(localStorage.getItem("suva_admin_user") || "{}");
@@ -247,7 +250,15 @@ export default function ReservationProcess() {
   const [guestExists, setGuestExists] = useState(false);
   const [originalGuestData, setOriginalGuestData] = useState(null);
   const [isCreatingNewGuest, setIsCreatingNewGuest] = useState(false);
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [selectedImageTitle, setSelectedImageTitle] = useState("");
 
+  const openImagePreview = (images, title) => {
+    setSelectedImages(images);
+    setSelectedImageTitle(title);
+    setImagePreviewOpen(true);
+  };
   // Step 1 data with time (default check-in 2pm, check-out 12pm)
   const [reservationFormData, setReservationFormData] = useState({
     checkIn: getDefaultCheckIn(),
@@ -904,7 +915,6 @@ export default function ReservationProcess() {
   const goNext = () => setStep((prev) => Math.min(4, prev + 1));
   const goBack = () => setStep((prev) => Math.max(1, prev - 1));
 
-  // Room and add-on handlers
   const addRoom = (item) => {
     if (roomReservations.length > 0) {
       const existingCategory = roomReservations[0].category;
@@ -933,6 +943,7 @@ export default function ReservationProcess() {
         roomTypeName: item.roomType?.name ?? "",
         category: item.category,
         addOns: [],
+        images: item.images || [], // Add this line
       },
     ]);
   };
@@ -1404,7 +1415,7 @@ export default function ReservationProcess() {
             {step === 2 && (
               <Section
                 title="Step 2: Select Rooms & Cottages"
-                subtitle="Select rooms or cottages and add add-ons."
+                subtitle="Select rooms or cottages and add amenities."
                 icon={<FiHome />}
                 right={
                   <div className="flex flex-wrap gap-3 text-xs text-gray-600">
@@ -1539,73 +1550,305 @@ export default function ReservationProcess() {
                             (r) => r.roomId === item._id,
                           );
                           const isCottage = item.category === "cottage";
+                          const hasImages =
+                            item.images && item.images.length > 0;
+                          const firstImage = hasImages
+                            ? item.images[0].url
+                            : null;
+                          const selectedRoom = roomReservations.find(
+                            (r) => r.roomId === item._id,
+                          );
 
                           return (
                             <div
                               key={item._id}
                               className={`
-                                rounded-xl border p-4 transition-all duration-200 bg-white
-                                ${
-                                  isSelected
-                                    ? "border-[#0c2bfc] ring-2 ring-[#0c2bfc]/20 hover:-translate-y-0.5 hover:shadow-md"
-                                    : "border-gray-200 hover:border-gray-300 hover:-translate-y-0.5 hover:shadow-md"
-                                }
-                              `}
+                    rounded-xl border overflow-hidden transition-all duration-200 bg-white
+                    ${
+                      isSelected
+                        ? "border-[#0c2bfc] ring-2 ring-[#0c2bfc]/20"
+                        : "border-gray-200 hover:border-gray-300 hover:shadow-lg"
+                    }
+                  `}
                             >
-                              <div className="flex items-start justify-between gap-2">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-sm font-semibold text-gray-900">
-                                      {isCottage ? "Cottage" : "Room"}{" "}
-                                      {item.roomNumber}
+                              {/* Image Section */}
+                              {firstImage && (
+                                <div className="relative h-48 bg-gray-100">
+                                  <img
+                                    src={firstImage}
+                                    alt={`${isCottage ? "Cottage" : "Room"} ${item.roomNumber}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  {hasImages && item.images.length > 1 && (
+                                    <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-lg backdrop-blur-sm">
+                                      +{item.images.length - 1} more
                                     </div>
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        isCottage
-                                          ? "bg-[#00af00]/10 text-[#00af00]"
-                                          : "bg-[#0c2bfc]/10 text-[#0c2bfc]"
-                                      }`}
-                                    >
-                                      {isCottage ? "Cottage" : "Room"}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-gray-600 mt-0.5">
-                                    {isCottage
-                                      ? item.description || "—"
-                                      : (item.roomType?.name ?? "—")}
-                                  </div>
+                                  )}
                                 </div>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    isSelected
-                                      ? removeRoom(item._id)
-                                      : addRoom(item)
-                                  }
-                                  disabled={
-                                    !isSelected &&
-                                    roomReservations.length >= maxRooms
-                                  }
-                                  className={`
-                                    text-xs font-medium px-3 py-1.5 rounded-xl transition-all duration-200
-                                    ${
+                              )}
+
+                              {/* Content Section */}
+                              <div className="p-4">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <div className="text-sm font-semibold text-gray-900">
+                                        {isCottage ? "Cottage" : "Room"}{" "}
+                                        {item.roomNumber}
+                                      </div>
+                                      <span
+                                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          isCottage
+                                            ? "bg-[#00af00]/10 text-[#00af00]"
+                                            : "bg-[#0c2bfc]/10 text-[#0c2bfc]"
+                                        }`}
+                                      >
+                                        {isCottage ? "Cottage" : "Room"}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-0.5">
+                                      {isCottage
+                                        ? item.description || "—"
+                                        : (item.roomType?.name ?? "—")}
+                                    </div>
+                                    <div className="text-xs text-gray-600 mt-2">
+                                      Capacity: {item.capacity} • Rate:{" "}
+                                      {formatMoney(item.rate)} / night
+                                    </div>
+
+                                    {/* Image Gallery Button */}
+                                    {hasImages && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openImagePreview(
+                                            item.images,
+                                            `${isCottage ? "Cottage" : "Room"} ${item.roomNumber} - ${item.roomType?.name || ""}`,
+                                          )
+                                        }
+                                        className="mt-2 inline-flex items-center gap-1 text-xs text-[#0c2bfc] hover:text-[#0a24d6] transition-colors"
+                                      >
+                                        <FiImage size={12} />
+                                        View all {item.images.length} image
+                                        {item.images.length !== 1 ? "s" : ""}
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
                                       isSelected
-                                        ? "bg-[#0c2bfc] text-white hover:bg-[#0a24d6] hover:shadow-md hover:-translate-y-0.5"
-                                        : roomReservations.length >= maxRooms
-                                          ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                                          : "bg-[#0c2bfc] text-white hover:bg-[#0a24d6] hover:shadow-md hover:-translate-y-0.5"
+                                        ? removeRoom(item._id)
+                                        : addRoom(item)
                                     }
-                                  `}
-                                >
-                                  {isSelected ? "Remove" : "Select"}
-                                  {!isSelected &&
-                                    roomReservations.length >= maxRooms &&
-                                    " (Max)"}
-                                </button>
-                              </div>
-                              <div className="text-xs text-gray-600 mt-2">
-                                Capacity: {item.capacity} • Rate:{" "}
-                                {formatMoney(item.rate)} / night
+                                    disabled={
+                                      !isSelected &&
+                                      roomReservations.length >= maxRooms
+                                    }
+                                    className={`
+                          text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap
+                          ${
+                            isSelected
+                              ? "bg-red-500 hover:bg-red-600 text-white"
+                              : roomReservations.length >= maxRooms
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                : "bg-[#0c2bfc] hover:bg-[#0a24d6] text-white"
+                          }
+                        `}
+                                  >
+                                    {isSelected ? "Remove" : "Select"}
+                                    {!isSelected &&
+                                      roomReservations.length >= maxRooms &&
+                                      " (Max)"}
+                                  </button>
+                                </div>
+
+                                {/* Add-Ons Section - ONLY for selected rooms */}
+                                {isSelected && !isCottage && (
+                                  <div className="mt-4 pt-4 border-t border-gray-200">
+                                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                                      Add Amenities
+                                    </div>
+                                    <div className="space-y-3">
+                                      {addOns.map((amenity) => {
+                                        const existingAmenity =
+                                          selectedRoom?.addOns?.find(
+                                            (a) => a.addOnId === amenity._id,
+                                          );
+                                        const quantity =
+                                          existingAmenity?.quantity || 0;
+
+                                        return (
+                                          <div
+                                            key={amenity._id}
+                                            className="flex items-center justify-between"
+                                          >
+                                            <div>
+                                              <div className="text-sm font-medium text-gray-900">
+                                                {amenity.name}
+                                              </div>
+                                              <div className="text-xs text-gray-500">
+                                                {formatMoney(amenity.rate)} per
+                                                item
+                                              </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (quantity > 0) {
+                                                    if (quantity === 1) {
+                                                      // Remove the amenity completely
+                                                      setRoomReservations(
+                                                        (prev) => {
+                                                          const updated = [
+                                                            ...prev,
+                                                          ];
+                                                          const roomIndex =
+                                                            updated.findIndex(
+                                                              (r) =>
+                                                                r.roomId ===
+                                                                item._id,
+                                                            );
+                                                          updated[
+                                                            roomIndex
+                                                          ].addOns = updated[
+                                                            roomIndex
+                                                          ].addOns.filter(
+                                                            (a) =>
+                                                              a.addOnId !==
+                                                              amenity._id,
+                                                          );
+                                                          return updated;
+                                                        },
+                                                      );
+                                                    } else {
+                                                      // Decrement quantity
+                                                      setRoomReservations(
+                                                        (prev) => {
+                                                          const updated = [
+                                                            ...prev,
+                                                          ];
+                                                          const roomIndex =
+                                                            updated.findIndex(
+                                                              (r) =>
+                                                                r.roomId ===
+                                                                item._id,
+                                                            );
+                                                          const amenityIndex =
+                                                            updated[
+                                                              roomIndex
+                                                            ].addOns.findIndex(
+                                                              (a) =>
+                                                                a.addOnId ===
+                                                                amenity._id,
+                                                            );
+                                                          updated[
+                                                            roomIndex
+                                                          ].addOns[
+                                                            amenityIndex
+                                                          ].quantity =
+                                                            quantity - 1;
+                                                          return updated;
+                                                        },
+                                                      );
+                                                    }
+                                                  }
+                                                }}
+                                                disabled={quantity === 0}
+                                                className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-200 ${
+                                                  quantity === 0
+                                                    ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
+                                                    : "border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 text-gray-700 hover:text-[#0c2bfc]"
+                                                }`}
+                                              >
+                                                <FiMinus size={14} />
+                                              </button>
+                                              <span className="w-8 text-center text-sm font-medium text-gray-900">
+                                                {quantity}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (quantity === 0) {
+                                                    // Add new amenity
+                                                    setRoomReservations(
+                                                      (prev) => {
+                                                        const updated = [
+                                                          ...prev,
+                                                        ];
+                                                        const roomIndex =
+                                                          updated.findIndex(
+                                                            (r) =>
+                                                              r.roomId ===
+                                                              item._id,
+                                                          );
+                                                        updated[
+                                                          roomIndex
+                                                        ].addOns.push({
+                                                          addOnId: amenity._id,
+                                                          quantity: 1,
+                                                        });
+                                                        return updated;
+                                                      },
+                                                    );
+                                                  } else {
+                                                    // Increment quantity
+                                                    setRoomReservations(
+                                                      (prev) => {
+                                                        const updated = [
+                                                          ...prev,
+                                                        ];
+                                                        const roomIndex =
+                                                          updated.findIndex(
+                                                            (r) =>
+                                                              r.roomId ===
+                                                              item._id,
+                                                          );
+                                                        const amenityIndex =
+                                                          updated[
+                                                            roomIndex
+                                                          ].addOns.findIndex(
+                                                            (a) =>
+                                                              a.addOnId ===
+                                                              amenity._id,
+                                                          );
+                                                        updated[
+                                                          roomIndex
+                                                        ].addOns[
+                                                          amenityIndex
+                                                        ].quantity =
+                                                          quantity + 1;
+                                                        return updated;
+                                                      },
+                                                    );
+                                                  }
+                                                }}
+                                                className="h-8 w-8 rounded-lg border border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 flex items-center justify-center transition-all duration-200 text-gray-700 hover:text-[#0c2bfc]"
+                                              >
+                                                <FiPlus size={14} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Cottages note */}
+                                {isSelected && isCottage && (
+                                  <div className="mt-4 pt-4 border-t border-gray-200">
+                                    <div className="text-xs text-gray-500 italic text-center py-3 border border-dashed border-gray-200 rounded-xl bg-gray-50">
+                                      <span className="text-[#00af00] font-medium">
+                                        ℹ️ Note:
+                                      </span>{" "}
+                                      Add-ons are only available for rooms, not
+                                      for cottages.
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );
@@ -1614,10 +1857,10 @@ export default function ReservationProcess() {
                         {filteredAvailableItems.length === 0 && (
                           <div
                             className="
-                            rounded-xl border border-gray-200 
-                            bg-white
-                            px-4 py-10 text-center text-gray-500 md:col-span-2
-                          "
+                rounded-xl border border-gray-200 
+                bg-white
+                px-4 py-10 text-center text-gray-500 md:col-span-2
+              "
                           >
                             <FiHome className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                             No available{" "}
@@ -1631,196 +1874,6 @@ export default function ReservationProcess() {
                         )}
                       </div>
                     </div>
-
-                    {/* Selected Items with Add-Ons */}
-                    {roomReservations.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-gray-900">
-                          Selected Items
-                        </h3>
-                        {roomReservations.map((roomRes, roomIndex) => {
-                          const item = availableRooms.find(
-                            (r) => r._id === roomRes.roomId,
-                          );
-                          const isCottage = item?.category === "cottage";
-                          const isRoom = item?.category === "room";
-
-                          return (
-                            <div
-                              key={roomRes.roomId}
-                              className="rounded-xl border border-gray-200 bg-white p-4"
-                            >
-                              <div className="flex items-center justify-between mb-3">
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-sm font-semibold text-gray-900">
-                                      {isCottage ? "Cottage" : "Room"}{" "}
-                                      {roomRes.roomNumber}
-                                    </div>
-                                    <span
-                                      className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        isCottage
-                                          ? "bg-[#00af00]/10 text-[#00af00]"
-                                          : "bg-[#0c2bfc]/10 text-[#0c2bfc]"
-                                      }`}
-                                    >
-                                      {isCottage ? "Cottage" : "Room"}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-gray-600">
-                                    Rate: {formatMoney(roomRes.rate)}/night
-                                  </div>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeRoom(roomRes.roomId)}
-                                  className="
-                                    h-9 w-9 rounded-xl border border-gray-200 
-                                    bg-white hover:bg-gray-50
-                                    grid place-items-center text-[#0c2bfc]
-                                    transition-all duration-200
-                                    hover:shadow-md hover:-translate-y-0.5
-                                  "
-                                  title="Remove item"
-                                >
-                                  <FiTrash2 />
-                                </button>
-                              </div>
-
-                              {/* Add-Ons Section - ONLY for rooms */}
-                              {!isCottage && isRoom && (
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <div className="text-xs font-medium text-gray-700">
-                                      Add-Ons
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => addAddOnToRoom(roomIndex)}
-                                      className="
-                                        h-8 px-3 rounded-xl 
-                                        bg-[#0c2bfc] hover:bg-[#0a24d6]
-                                        text-white text-xs font-medium inline-flex items-center gap-1
-                                        transition-all duration-200
-                                        hover:shadow-md hover:-translate-y-0.5
-                                      "
-                                    >
-                                      <FiPlus size={12} /> Add Add-On
-                                    </button>
-                                  </div>
-
-                                  {roomRes.addOns.map((addOn, addOnIndex) => {
-                                    const addOnData = addOns.find(
-                                      (a) => a._id === addOn.addOnId,
-                                    );
-
-                                    return (
-                                      <div
-                                        key={`${addOn.addOnId}-${addOnIndex}`}
-                                        className="
-                                          grid gap-3 sm:grid-cols-12 items-center 
-                                          rounded-xl border border-gray-200 bg-white p-3
-                                        "
-                                      >
-                                        <div className="sm:col-span-7">
-                                          <label className="text-xs text-gray-500">
-                                            Add-On
-                                          </label>
-                                          <select
-                                            value={addOn.addOnId}
-                                            onChange={(e) =>
-                                              updateAddOnInRoom(
-                                                roomIndex,
-                                                addOnIndex,
-                                                { addOnId: e.target.value },
-                                              )
-                                            }
-                                            className="
-                                              mt-1 w-full h-10 rounded-xl border border-gray-200 
-                                              bg-white px-3 text-sm outline-none 
-                                              focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                                            "
-                                          >
-                                            {addOns.map((a) => (
-                                              <option key={a._id} value={a._id}>
-                                                {a.name} ({formatMoney(a.rate)})
-                                                {a.category &&
-                                                  ` - ${a.category}`}
-                                              </option>
-                                            ))}
-                                          </select>
-                                        </div>
-
-                                        <div className="sm:col-span-3">
-                                          <label className="text-xs text-gray-500">
-                                            Quantity
-                                          </label>
-                                          <div className="mt-1">
-                                            <Stepper
-                                              value={addOn.quantity}
-                                              onChange={(newQuantity) =>
-                                                updateAddOnInRoom(
-                                                  roomIndex,
-                                                  addOnIndex,
-                                                  { quantity: newQuantity },
-                                                )
-                                              }
-                                              min={1}
-                                              max={99}
-                                              step={1}
-                                              size="small"
-                                            />
-                                          </div>
-                                        </div>
-
-                                        <div className="sm:col-span-2 flex justify-end">
-                                          <button
-                                            type="button"
-                                            onClick={() =>
-                                              removeAddOnFromRoom(
-                                                roomIndex,
-                                                addOnIndex,
-                                              )
-                                            }
-                                            className="
-                                              h-10 w-10 rounded-xl border border-gray-200 
-                                              bg-white hover:bg-gray-50
-                                              grid place-items-center text-[#0c2bfc]
-                                              transition-all duration-200
-                                              hover:shadow-md hover:-translate-y-0.5
-                                            "
-                                            title="Remove add-on"
-                                          >
-                                            <FiTrash2 />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-
-                                  {roomRes.addOns.length === 0 && (
-                                    <div className="text-xs text-gray-500 italic text-center py-3 border border-dashed border-gray-200 rounded-xl bg-gray-50">
-                                      No add-ons added to this room.
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Cottages note */}
-                              {isCottage && (
-                                <div className="mt-2 text-xs text-gray-500 italic text-center py-3 border border-dashed border-gray-200 rounded-xl bg-gray-50">
-                                  <span className="text-[#00af00] font-medium">
-                                    ℹ️ Note:
-                                  </span>{" "}
-                                  Add-ons are only available for rooms, not for
-                                  cottages.
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
                   </>
                 )}
               </Section>
@@ -2319,6 +2372,7 @@ export default function ReservationProcess() {
                       min="0"
                       step="0.01"
                       value={payment.amountPaid}
+                      disabled={true}
                       onChange={(e) => {
                         const value = Number(e.target.value);
                         setPayment((p) => ({
@@ -2330,15 +2384,11 @@ export default function ReservationProcess() {
                         setFieldError("amountPaid", "");
                       }}
                       className={`
-                        mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                        transition-all duration-200 bg-white
-                        ${
-                          errors.amountPaid
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-200"
-                        }
-                      `}
+      mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
+      focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+      transition-all duration-200 bg-gray-100 cursor-not-allowed
+      ${errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"}
+    `}
                     />
                     <FieldError text={errors.amountPaid} />
                   </div>
@@ -2969,6 +3019,13 @@ export default function ReservationProcess() {
           </div>
         )}
       </div>
+      <ImagePreviewModal
+        open={imagePreviewOpen}
+        images={selectedImages}
+        startIndex={0}
+        title={selectedImageTitle}
+        onClose={() => setImagePreviewOpen(false)}
+      />
     </>
   );
 }
