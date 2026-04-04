@@ -556,6 +556,7 @@ export const useReservationStore = create((set, get) => ({
     payment,
     discountImageFile = null,
     receiptData = null,
+    guestId = null,
   }) => {
     set({ loading: true, error: null });
     try {
@@ -623,30 +624,18 @@ export const useReservationStore = create((set, get) => ({
       // All rooms are available, continue with reservation
       console.log("All selected rooms are available:", availableRoomsDetails);
 
-      // Step 1: Create or find guest
-      let guestId;
-      if (guest.email && guest.email.trim()) {
-        try {
-          const resGuest = await fetch(
-            `${API}/guests/find-or-create-by-email`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(guest),
-            },
-          );
-          const guestResponse = await safeJson(resGuest);
-          guestId = guestResponse.guest?._id || guestResponse._id;
-        } catch (guestErr) {
-          console.warn(
-            "Could not find/create guest by email, using default:",
-            guestErr.message,
-          );
-          guestId = "6968b7aad9522d8eac7cafb3";
-        }
-      } else {
-        guestId = "6968b7aad9522d8eac7cafb3";
-      }
+      // Step 1: Let backend resolve/create guest when guestId is missing.
+      const finalGuestId = guestId || null;
+      const normalizedGuest =
+        !finalGuestId && guest
+          ? {
+              firstName: String(guest.firstName || "").trim(),
+              lastName: String(guest.lastName || "").trim(),
+              contactNumber: String(guest.contactNumber || "").trim(),
+              email: guest.email ? String(guest.email).trim().toLowerCase() : "",
+              status: "active",
+            }
+          : null;
 
       // Step 2: Create reservation
       const user = JSON.parse(localStorage.getItem("suva_admin_user") || "{}");
@@ -661,7 +650,8 @@ export const useReservationStore = create((set, get) => ({
         checkOut: reservationData.checkOut,
         adults: reservationData.adults,
         children: reservationData.children || 0,
-        guestId: guestId,
+        guestId: finalGuestId,
+        guest: normalizedGuest,
         notes: [
           reservationData.notes || "",
           `Availability confirmed: ${availabilityNotes}. Checked at: ${new Date().toISOString()}`,
