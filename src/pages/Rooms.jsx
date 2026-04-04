@@ -396,7 +396,7 @@ export default function Rooms() {
               Rooms & Cottages Management
             </div>
             <div className="text-sm text-gray-600">
-              Manage rooms and cottages separately by tab
+              Manage rooms and cottages
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
               <button
