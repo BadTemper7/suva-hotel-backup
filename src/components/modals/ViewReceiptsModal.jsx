@@ -745,6 +745,14 @@ function ViewReceiptsModal({ billing, open, onClose }) {
                           </div>
                           <div className="space-y-1">
                             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                              Amount Received
+                            </p>
+                            <p className="text-sm font-bold text-[#0c2bfc] bg-[#0c2bfc]/5 rounded-lg p-3 border border-[#0c2bfc]/20">
+                              {money(receipt.amountReceived ?? receipt.amountPaid)}
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                               Change
                             </p>
                             <p className="text-sm font-medium text-gray-700 bg-gray-50 rounded-lg p-3 border border-gray-200">

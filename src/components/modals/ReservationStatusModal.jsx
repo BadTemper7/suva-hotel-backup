@@ -20,14 +20,10 @@ const BILLING_STYLES = {
   paid: "bg-[#00af00]/10 text-[#00af00]",
 };
 
-const PAYMENT_LABELS = {
-  cash: "Cash",
-  gcash: "GCash",
-  maya: "Maya",
-  bank_transfer: "Bank Transfer",
-  credit_card: "Credit Card",
-  debit_card: "Debit Card",
-  paypal: "PayPal",
+const RECEIPT_STATUS_STYLES = {
+  pending: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
+  confirmed: "bg-[#00af00]/10 text-[#00af00]",
+  rejected: "bg-red-100 text-red-700",
 };
 
 function normalizeReservationStatus(v) {
@@ -45,6 +41,14 @@ function normalizeBillingStatus(v) {
   if (s === "paid") return "paid";
   if (s === "partial" || s === "partially paid") return "partial";
   return "unpaid";
+}
+
+function normalizeReceiptStatus(v) {
+  const s = String(v || "")
+    .toLowerCase()
+    .trim();
+  if (["pending", "confirmed", "rejected"].includes(s)) return s;
+  return "pending";
 }
 
 function StatusPill({ value, variant = "reservation" }) {
@@ -128,6 +132,7 @@ export default function ReservationStatusModal({
 
   const [billingLoading, setBillingLoading] = useState(false);
   const [billing, setBilling] = useState(null);
+  const [paymentTypes, setPaymentTypes] = useState([]);
 
   const [preview, setPreview] = useState({
     open: false,
@@ -161,9 +166,20 @@ export default function ReservationStatusModal({
     }
   };
 
+  const fetchPaymentTypes = async () => {
+    try {
+      const res = await fetch(`${API}/payment-types`);
+      const data = await safeJson(res);
+      setPaymentTypes(Array.isArray(data) ? data : []);
+    } catch {
+      setPaymentTypes([]);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
     fetchBilling();
+    fetchPaymentTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, reservationId]);
 
@@ -215,6 +231,19 @@ export default function ReservationStatusModal({
     return imgs;
   }, [billing]);
 
+  const receiptList = useMemo(() => {
+    return Array.isArray(billing?.receipts) ? billing.receipts : [];
+  }, [billing?.receipts]);
+
+  const paymentTypeNameById = useMemo(() => {
+    return new Map(
+      (Array.isArray(paymentTypes) ? paymentTypes : []).map((pt) => [
+        String(pt?._id || ""),
+        pt?.name || "",
+      ]),
+    );
+  }, [paymentTypes]);
+
   const openReceiptsPreview = (startIndex = 0) => {
     setPreview({
       open: true,
@@ -244,11 +273,10 @@ export default function ReservationStatusModal({
                 type="button"
                 onClick={fetchBilling}
                 disabled={billingLoading}
-                className={`h-9 px-3 rounded-xl border border-gray-200 bg-white text-sm inline-flex items-center gap-2 text-gray-700 transition-all duration-200 ${
-                  billingLoading
+                className={`h-9 px-3 rounded-xl border border-gray-200 bg-white text-sm inline-flex items-center gap-2 text-gray-700 transition-all duration-200 ${billingLoading
                     ? "opacity-60 cursor-not-allowed"
                     : "hover:bg-gray-50"
-                }`}
+                  }`}
                 title="Refresh billing"
               >
                 <FiRefreshCw />
@@ -376,57 +404,70 @@ export default function ReservationStatusModal({
                 <>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                      <div className="text-xs text-gray-500">Total</div>
+                      <div className="text-xs text-gray-500">Total Amount</div>
                       <div className="text-sm font-semibold text-gray-900">
                         {money(billing.totalAmount)}
                       </div>
                     </div>
 
+                    {Number(billing.discountAmount || 0) > 0 && (
+                      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                        <div className="text-xs text-gray-500">
+                          Discount
+                          {reservation?.discount?.name
+                            ? ` (${reservation.discount.name})`
+                            : ""}
+                        </div>
+                        <div className="text-sm font-semibold text-[#00af00]">
+                          -{money(billing.discountAmount)}
+                        </div>
+                        {Number(reservation?.discount?.discountPercent || 0) >
+                          0 ? (
+                          <div className="text-[11px] text-gray-500 mt-0.5">
+                            {reservation.discount.discountPercent}% off
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                      <div className="text-xs text-gray-500">Paid</div>
-                      <div className="text-sm font-semibold text-gray-900">
+                      <div className="text-xs text-gray-500">Amount Paid</div>
+                      <div className="text-sm font-semibold text-[#00af00]">
                         {money(billing.amountPaid)}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                      <div className="text-xs text-gray-500">Balance</div>
-                      <div className="text-sm font-semibold text-gray-900">
+                      <div className="text-xs text-gray-500">
+                        Remaining Balance
+                      </div>
+                      <div className="text-sm font-semibold text-orange-600">
                         {money(billing.balance)}
                       </div>
                     </div>
 
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                      <div className="text-xs text-gray-500">Change</div>
+                      <div className="text-xs text-gray-500">Payment Option</div>
                       <div className="text-sm font-semibold text-gray-900">
-                        {money(billing.change)}
+                        {reservation?.paymentOption?.name || "N/A"}
                       </div>
+                      {reservation?.paymentOption?.paymentType === "partial" && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {reservation?.paymentOption?.amount || 0}% down payment
+                        </div>
+                      )}
                     </div>
+
                   </div>
 
                   <div className="mt-3 text-sm text-gray-700 space-y-1">
-                    <div>
-                      Method:{" "}
-                      <span className="font-medium text-gray-900">
-                        {PAYMENT_LABELS[billing.method] || billing.method}
-                      </span>
-                    </div>
-
-                    <div>
-                      Pay Option:{" "}
-                      <span className="font-medium text-gray-900">
-                        {billing.payOption} ({billing.payPercent}%)
-                      </span>
-                    </div>
-
-                    {/* ✅ Due Date appears ONLY when unpaid */}
+                    {/* Due Date appears ONLY when unpaid */}
                     {billingStatus === "unpaid" && (
                       <div>
                         Due Date:{" "}
                         <span
-                          className={`font-medium ${
-                            isOverdue ? "text-red-600" : "text-gray-900"
-                          }`}
+                          className={`font-medium ${isOverdue ? "text-red-600" : "text-gray-900"
+                            }`}
                         >
                           {formatDateTime(dueDate)}
                         </span>
@@ -494,6 +535,94 @@ export default function ReservationStatusModal({
                       </div>
                     )}
                   </div>
+
+                  {receiptList.length > 0 && (
+                    <div className="mt-4">
+                      <div className="text-sm font-semibold text-gray-900 mb-2">
+                        Receipt Details
+                      </div>
+                      <div className="space-y-2 max-h-56 overflow-auto pr-1">
+                        {receiptList.map((receipt) => {
+                          const receiptStatus = normalizeReceiptStatus(
+                            receipt?.status,
+                          );
+                          const rawPaymentType = receipt?.paymentType;
+                          const paymentTypeName =
+                            (rawPaymentType &&
+                              typeof rawPaymentType === "object" &&
+                              rawPaymentType?.name) ||
+                            paymentTypeNameById.get(
+                              String(
+                                (rawPaymentType &&
+                                  typeof rawPaymentType === "object" &&
+                                  rawPaymentType?._id) ||
+                                rawPaymentType ||
+                                "",
+                              ),
+                            ) ||
+                            "Payment";
+                          return (
+                            <div
+                              key={receipt?._id || `${receipt?.createdAt || ""}-${receipt?.referenceNumber || ""}`}
+                              className="rounded-xl border border-gray-200 bg-gray-50 p-3"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${RECEIPT_STATUS_STYLES[receiptStatus]}`}
+                                >
+                                  {receiptStatus.charAt(0).toUpperCase() +
+                                    receiptStatus.slice(1)}
+                                </span>
+                                <span className="text-xs text-gray-500">
+                                  {formatDateTime(receipt?.createdAt)}
+                                </span>
+                              </div>
+                              <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                <div className="text-gray-600">
+                                  Payment Type:{" "}
+                                  <span className="font-semibold text-gray-900">
+                                    {paymentTypeName}
+                                  </span>
+                                </div>
+                                <div className="text-gray-600">
+                                  Amount Paid:{" "}
+                                  <span className="font-semibold text-gray-900">
+                                    {money(receipt?.amountPaid)}
+                                  </span>
+                                </div>
+                                <div className="text-gray-600">
+                                  Amount Received:{" "}
+                                  <span className="font-semibold text-gray-900">
+                                    {money(
+                                      receipt?.amountReceived ??
+                                      receipt?.amountPaid,
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="text-gray-600">
+                                  Change:{" "}
+                                  <span className="font-semibold text-gray-900">
+                                    {money(receipt?.change || 0)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {receipt?.referenceNumber && (
+                                <div className="mt-2">
+                                  <p className="text-xs text-gray-500">
+                                    Reference Number
+                                  </p>
+                                  <p className="text-xs font-mono text-gray-700 bg-white p-2 rounded-lg mt-1 border border-gray-200">
+                                    {receipt.referenceNumber}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="mt-3 text-xs text-gray-500">
                     Tip: Confirm reservation when billing is{" "}
