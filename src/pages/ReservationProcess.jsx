@@ -120,11 +120,6 @@ const validateName = (v) => {
   return /^[A-Za-z\s]+$/.test(v.trim());
 };
 
-// Calculate maximum rooms based on adults
-const calculateMaxRooms = (adults) => {
-  return Math.max(1, Math.ceil(adults)); // At least 1 room
-};
-
 // Components
 function FieldError({ text, className = "" }) {
   if (!text) return null;
@@ -321,9 +316,6 @@ export default function ReservationProcess() {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [errors, setErrors] = useState({});
-
-  // Track maximum rooms based on adults
-  const [maxRooms, setMaxRooms] = useState(1);
 
   const todayISO = useMemo(() => toISODate(new Date()), []);
   const now = new Date();
@@ -754,22 +746,8 @@ export default function ReservationProcess() {
       errors.rooms = "Select at least one room or cottage.";
     }
 
-    if (roomReservations.length > maxRooms) {
-      errors.rooms = `You can only select maximum ${maxRooms} item(s) for ${reservationFormData.adults} adult(s).`;
-    }
-
     if (reservationFormData.adults > totalCapacity) {
       errors.capacity = `Capacity (${totalCapacity}) is not enough for adults (${reservationFormData.adults}).`;
-    }
-
-    const hasRooms = roomReservations.some((item) => item.category === "room");
-    const hasCottages = roomReservations.some(
-      (item) => item.category === "cottage",
-    );
-
-    if (hasRooms && hasCottages) {
-      errors.category =
-        "You cannot mix rooms and cottages in the same reservation. Please select either rooms OR cottages only.";
     }
 
     setErrors(errors);
@@ -785,9 +763,9 @@ export default function ReservationProcess() {
   const validateStep3 = () => {
     const errors = {};
 
-    if (!emailInput || emailInput.trim() === "") {
-      errors.email = "Email is required. Please enter an email address.";
-    }
+    // if (!emailInput || emailInput.trim() === "") {
+    //   errors.email = "Email is required. Please enter an email address.";
+    // }
 
     if (guestExists && reservationFormData.guestId) {
       if (originalGuestData && originalGuestData.email !== emailInput) {
@@ -842,14 +820,6 @@ export default function ReservationProcess() {
       errors.amountPaid = "Amount paid cannot be negative.";
     }
 
-    if (payment.amountReceived < 0) {
-      errors.amountReceived = "Amount received cannot be negative.";
-    }
-
-    if (payment.amountPaid > payment.amountReceived) {
-      errors.amountReceived = "Amount received must be at least amount paid.";
-    }
-
     if (requiresReceipt) {
       if (!referenceNumber && !selectedReceiptImage) {
         errors.receipt =
@@ -875,18 +845,6 @@ export default function ReservationProcess() {
   // Step handlers
   const handleStep1Next = async () => {
     if (!validateStep1()) return;
-
-    const newMaxRooms = calculateMaxRooms(reservationFormData.adults);
-    if (roomReservations.length > newMaxRooms) {
-      toast.error(
-        `Selected items (${roomReservations.length}) exceed new limit of ${newMaxRooms} for ${reservationFormData.adults} adult(s). Please adjust selection.`,
-      );
-      setMaxRooms(newMaxRooms);
-      setStep(2);
-      return;
-    }
-
-    setMaxRooms(newMaxRooms);
     setLoadingRooms(true);
     try {
       const data = await fetchAvailableRooms({
@@ -916,23 +874,6 @@ export default function ReservationProcess() {
   const goBack = () => setStep((prev) => Math.max(1, prev - 1));
 
   const addRoom = (item) => {
-    if (roomReservations.length > 0) {
-      const existingCategory = roomReservations[0].category;
-      if (existingCategory !== item.category) {
-        toast.error(
-          `You cannot mix rooms and cottages. You already have ${existingCategory === "room" ? "rooms" : "cottages"} selected. Please remove them first or select only ${existingCategory === "room" ? "rooms" : "cottages"}.`,
-        );
-        return;
-      }
-    }
-
-    if (roomReservations.length >= maxRooms) {
-      toast.error(
-        `Maximum ${maxRooms} item(s) allowed for ${reservationFormData.adults} adult(s).`,
-      );
-      return;
-    }
-
     setRoomReservations((prev) => [
       ...prev,
       {
@@ -1067,7 +1008,6 @@ export default function ReservationProcess() {
     setReferenceNumber("");
     setAvailableRooms([]);
     setErrors({});
-    setMaxRooms(1);
     clearCurrentGuest();
   };
 
@@ -1421,8 +1361,7 @@ export default function ReservationProcess() {
                       error={errors.adults}
                     />
                     <div className="mt-1 text-xs text-gray-500">
-                      Maximum items allowed:{" "}
-                      {calculateMaxRooms(reservationFormData.adults)}
+                      You can select multiple rooms/cottages.
                     </div>
                   </div>
 
@@ -1484,8 +1423,6 @@ export default function ReservationProcess() {
                     <span>
                       Selected:{" "}
                       <b className="text-gray-900">{roomReservations.length}</b>
-                      <span className="text-gray-400">/</span>
-                      <b className="text-gray-600">{maxRooms}</b>
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
@@ -1571,30 +1508,9 @@ export default function ReservationProcess() {
                           <span className="font-medium text-gray-900">
                             {roomReservations.length}
                           </span>
-                          <span className="text-gray-400"> / </span>
-                          <span className="font-medium text-gray-600">
-                            {maxRooms}
-                          </span>
                           <span className="text-gray-400 ml-1">selected</span>
                         </div>
                       </div>
-
-                      {roomReservations.length === maxRooms && maxRooms > 0 && (
-                        <div className="mb-3 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-800">
-                          <div className="font-medium">
-                            Maximum Items Reached
-                          </div>
-                          <div className="mt-1">
-                            You've reached the maximum of {maxRooms} item(s) for{" "}
-                            {reservationFormData.adults} adult(s).
-                            {reservationFormData.adults > totalCapacity && (
-                              <span className="ml-1">
-                                Consider items with higher capacity.
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
 
                       <FieldError text={errors.rooms} />
                       <FieldError text={errors.capacity} />
@@ -1697,25 +1613,16 @@ export default function ReservationProcess() {
                                         ? removeRoom(item._id)
                                         : addRoom(item)
                                     }
-                                    disabled={
-                                      !isSelected &&
-                                      roomReservations.length >= maxRooms
-                                    }
                                     className={`
                           text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-200 whitespace-nowrap
                           ${
                             isSelected
                               ? "bg-red-500 hover:bg-red-600 text-white"
-                              : roomReservations.length >= maxRooms
-                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                                : "bg-[#0c2bfc] hover:bg-[#0a24d6] text-white"
+                              : "bg-[#0c2bfc] hover:bg-[#0a24d6] text-white"
                           }
                         `}
                                   >
                                     {isSelected ? "Remove" : "Select"}
-                                    {!isSelected &&
-                                      roomReservations.length >= maxRooms &&
-                                      " (Max)"}
                                   </button>
                                 </div>
 
@@ -1945,7 +1852,7 @@ export default function ReservationProcess() {
                   {/* Email Field with Search */}
                   <div className="sm:col-span-2 relative">
                     <label className="text-sm font-medium text-gray-700">
-                      Email *
+                      Email
                       {guestExists && (
                         <span className="ml-2 text-xs text-[#00af00]">
                           ✓ Existing guest
@@ -2096,11 +2003,11 @@ export default function ReservationProcess() {
                   </div>
 
                   {/* Show message when no email entered */}
-                  {!emailInput && (
+                  {/* {!emailInput && (
                     <div className="sm:col-span-2 text-xs text-amber-600 bg-amber-50 p-2 rounded-lg">
                       ⚠️ Please enter an email to get started
                     </div>
-                  )}
+                  )} */}
 
                   {/* Show creating new guest message */}
                   {emailInput && emailInput.trim() !== "" && !guestExists && (
@@ -2458,17 +2365,10 @@ export default function ReservationProcess() {
                       min="0"
                       step="0.01"
                       value={payment.amountReceived}
-                      onChange={(e) => {
-                        setPayment((p) => ({
-                          ...p,
-                          amountReceived: Number(e.target.value),
-                        }));
-                        setFieldError("amountReceived", "");
-                      }}
+                      disabled={true}
                       className={`
                         mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                        transition-all duration-200 bg-white
+                        transition-all duration-200 bg-gray-100 text-gray-700 cursor-not-allowed
                         ${
                           errors.amountReceived
                             ? "border-red-300 bg-red-50"
@@ -2775,7 +2675,7 @@ export default function ReservationProcess() {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Items</span>
                     <span className="font-medium text-gray-900">
-                      {roomReservations.length} / {maxRooms}
+                      {roomReservations.length}
                     </span>
                   </div>
                 </div>
@@ -2916,26 +2816,12 @@ export default function ReservationProcess() {
                             {formatMoney(payment.amountReceived)}
                           </span>
                         </div>
-
-                        {payment.amountReceived > payment.amountPaid && (
-                          <div className="flex justify-between text-[#00af00]">
-                            <span>Change</span>
-                            <span className="font-medium">
-                              {formatMoney(
-                                payment.amountReceived - payment.amountPaid,
-                              )}
-                            </span>
-                          </div>
-                        )}
-
-                        {payment.amountPaid < amountDue && (
-                          <div className="flex justify-between text-red-600">
-                            <span>Balance Due</span>
-                            <span className="font-medium">
-                              {formatMoney(amountDue - payment.amountPaid)}
-                            </span>
-                          </div>
-                        )}
+                        <div className="flex justify-between text-red-600">
+                          <span>Remaining Balance</span>
+                          <span className="font-medium">
+                            {formatMoney(Math.max(finalTotal - payment.amountPaid, 0))}
+                          </span>
+                        </div>
                       </div>
                     </>
                   )}
@@ -3000,18 +2886,12 @@ export default function ReservationProcess() {
             <button
               type="button"
               onClick={handleStep2Next}
-              disabled={
-                roomReservations.length === 0 ||
-                roomReservations.length > maxRooms ||
-                errors.category
-              }
+              disabled={roomReservations.length === 0}
               className={`
                 h-11 px-5 rounded-xl text-white text-sm font-medium 
                 inline-flex items-center gap-2 transition-all duration-200
                 ${
-                  roomReservations.length === 0 ||
-                  roomReservations.length > maxRooms ||
-                  errors.category
+                  roomReservations.length === 0
                     ? "bg-[#0c2bfc]/50 cursor-not-allowed"
                     : "bg-[#0c2bfc] hover:bg-[#0a24d6] hover:shadow-lg hover:-translate-y-0.5"
                 }

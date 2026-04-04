@@ -622,7 +622,7 @@ export default function PaymentOptions() {
         <PaymentOptionModal
           open={modal.open}
           mode={modal.mode}
-          data={modal.payment}
+          paymentOption={modal.payment}
           onClose={closeModal}
           onSave={savePaymentOption}
         />
