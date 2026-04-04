@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 const labelMap = {
   admin: "Admin",
   dashboard: "Dashboard",
-  rooms: "Rooms",
+  rooms: "Rooms & Cottages",
   "room-types": "Room Types",
   amenities: "Amenities",
   "add-ons": "Add-Ons",
@@ -118,7 +118,7 @@ export default function Breadcrumbs() {
     const child = actualSegments[0];
 
     crumbs.push(
-      { to: `/${parent}`, label: labelMap[parent] || "Rooms" },
+      { to: `/${parent}`, label: labelMap[parent] || "Rooms & Cottages" },
       {
         to: `/${child}`,
         label:

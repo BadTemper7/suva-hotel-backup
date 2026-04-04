@@ -5,8 +5,6 @@ import {
   FiPlus,
   FiSearch,
   FiTag,
-  FiChevronLeft,
-  FiChevronRight,
   FiUploadCloud,
   FiGrid,
   FiTrash2,
@@ -16,7 +14,8 @@ import {
 } from "react-icons/fi";
 
 import Loader from "../components/layout/Loader.jsx";
-import RoomModal from "../components/modals/RoomModal.jsx";
+import RoomFormModal from "../components/modals/RoomFormModal.jsx";
+import CottageFormModal from "../components/modals/CottageFormModal.jsx";
 import ImagePreviewModal from "../components/modals/ImagePreviewModal.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import { useRoomStore } from "../stores/roomStore.js";
@@ -26,17 +25,19 @@ import { Helmet } from "react-helmet";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
-  inactive: "bg-gray-100 text-gray-700",
   maintenance: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
+  clean: "bg-emerald-50 text-emerald-800",
+  "to-clean": "bg-amber-50 text-amber-900",
 };
 
 function normalizeStatus(value) {
   const raw = String(value ?? "")
     .toLowerCase()
     .trim();
-  if (raw === "inactive") return "inactive";
   if (raw === "maintenance" || raw === "under maintenance")
     return "maintenance";
+  if (raw === "clean") return "clean";
+  if (raw === "to-clean" || raw === "to clean") return "to-clean";
   return "active";
 }
 
@@ -44,15 +45,16 @@ function StatusPill({ value }) {
   const v = normalizeStatus(value);
   const labels = {
     active: "Active",
-    inactive: "Inactive",
-    maintenance: "Under Maintenance",
+    maintenance: "Under maintenance",
+    clean: "Clean",
+    "to-clean": "To clean",
   };
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${STATUS_STYLES[v]}`}
+      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${STATUS_STYLES[v] ?? STATUS_STYLES.active}`}
     >
-      {labels[v]}
+      {labels[v] ?? labels.active}
     </span>
   );
 }
@@ -192,6 +194,12 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
 
         <div className="mt-3">
           <StatusPill value={room.status} />
+          {normalizeStatus(room.status) === "maintenance" &&
+            room.maintenanceReason && (
+              <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                {room.maintenanceReason}
+              </p>
+            )}
         </div>
       </div>
 
@@ -220,17 +228,24 @@ export default function Rooms() {
 
   const rooms = useRoomStore((state) => state.rooms);
   const fetchRooms = useRoomStore((state) => state.fetchRooms);
-  const createRoom = useRoomStore((state) => state.createRoom);
-  const updateRoom = useRoomStore((state) => state.updateRoom);
   const loading = useRoomStore((state) => state.loading);
   const deleteMultipleRooms = useRoomStore(
     (state) => state.deleteMultipleRooms,
   );
 
+  const [listTab, setListTab] = useState("room");
   const [q, setQ] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all"); // New category filter
   const [statusFilter, setStatusFilter] = useState("all");
-  const [modal, setModal] = useState({ open: false, mode: "add", room: null });
+  const [roomModal, setRoomModal] = useState({
+    open: false,
+    mode: "add",
+    room: null,
+  });
+  const [cottageModal, setCottageModal] = useState({
+    open: false,
+    mode: "add",
+    room: null,
+  });
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -247,43 +262,43 @@ export default function Rooms() {
   const isAdmin = role === "admin" || role === "superadmin";
 
   useEffect(() => {
-    fetchRooms().catch((err) =>
+    fetchRooms({ category: listTab }).catch((err) =>
       toast.error(err.message || "Failed to fetch rooms"),
     );
-  }, [fetchRooms]);
+  }, [fetchRooms, listTab]);
+
+  useEffect(() => {
+    setRoomModal({ open: false, mode: "add", room: null });
+    setCottageModal({ open: false, mode: "add", room: null });
+  }, [listTab]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rooms.filter((r) => {
-      // Category filter
-      if (categoryFilter !== "all" && r.category !== categoryFilter)
-        return false;
-
-      // Status filter
       const st = normalizeStatus(r.status);
       if (statusFilter !== "all" && st !== statusFilter) return false;
 
-      // Search filter
       if (!s) return true;
 
       const type = (r.roomType?.name ?? r.roomType ?? "").toLowerCase();
       const no = String(r.roomNo ?? r.roomNumber ?? "").toLowerCase();
-      const category = r.category?.toLowerCase() || "";
+      const reason = String(r.maintenanceReason ?? "").toLowerCase();
+      const desc = String(r.description ?? "").toLowerCase();
 
       return (
         no.includes(s) ||
         type.includes(s) ||
         st.includes(s) ||
-        category.includes(s)
+        reason.includes(s) ||
+        desc.includes(s)
       );
     });
-  }, [rooms, q, categoryFilter, statusFilter]);
+  }, [rooms, q, statusFilter]);
 
-  // Clear selection when filter/search changes
   useEffect(() => {
     setSelectedRooms([]);
     setPage(1);
-  }, [q, categoryFilter, statusFilter]);
+  }, [q, statusFilter, listTab]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -297,29 +312,24 @@ export default function Rooms() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const openAdd = () => setModal({ open: true, mode: "add", room: null });
-  const openEdit = (room) => setModal({ open: true, mode: "edit", room });
-  const closeModal = () => setModal({ open: false, mode: "add", room: null });
+  const openAddRoom = () =>
+    setRoomModal({ open: true, mode: "add", room: null });
+  const openAddCottage = () =>
+    setCottageModal({ open: true, mode: "add", room: null });
+  const openEditRoom = (room) =>
+    setRoomModal({ open: true, mode: "edit", room });
+  const openEditCottage = (room) =>
+    setCottageModal({ open: true, mode: "edit", room });
+  const closeRoomModal = () =>
+    setRoomModal({ open: false, mode: "add", room: null });
+  const closeCottageModal = () =>
+    setCottageModal({ open: false, mode: "add", room: null });
 
-  const saveRoom = async (payload) => {
-    const normalizedStatus = normalizeStatus(payload.status);
-    try {
-      if (modal.mode === "add") {
-        await createRoom({ ...payload, status: normalizedStatus });
-        toast.success(
-          `${payload.category === "cottage" ? "Cottage" : "Room"} created successfully`,
-        );
-      } else {
-        await updateRoom(payload._id, { ...payload, status: normalizedStatus });
-        toast.success(
-          `${payload.category === "cottage" ? "Cottage" : "Room"} updated successfully`,
-        );
-      }
-      closeModal();
-    } catch (err) {
-      toast.error(err.message || "Something went wrong");
-    }
-  };
+  const openEdit = (room) =>
+    room.category === "cottage" ? openEditCottage(room) : openEditRoom(room);
+
+  const openAdd = () =>
+    listTab === "room" ? openAddRoom() : openAddCottage();
 
   const openPreview = (room, startIndex = 0) =>
     setPreview({ open: true, room, startIndex });
@@ -361,14 +371,10 @@ export default function Rooms() {
       currency: "PHP",
     }).format(n || 0);
 
-  // Calculate counts
-  const roomCount = rooms.filter((r) => r.category === "room").length;
-  const cottageCount = rooms.filter((r) => r.category === "cottage").length;
-
   return (
     <>
       <Helmet>
-        <title>Room & Cottage Management - Resort Admin</title>
+        <title>Rooms & Cottages - Resort Admin</title>
       </Helmet>
       <div className="min-h-full flex flex-col gap-6">
         <Toaster
@@ -387,20 +393,45 @@ export default function Rooms() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-xl font-bold text-gray-900">
-              Room & Cottage Management
+              Rooms & Cottages Management
             </div>
             <div className="text-sm text-gray-600">
-              Manage rooms, cottages, and availability status
+              Manage rooms and cottages separately by tab
             </div>
-            <div className="flex items-center gap-4 mt-2 text-xs">
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#0c2bfc]"></span>
-                Rooms: {roomCount}
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#00af00]"></span>
-                Cottages: {cottageCount}
-              </span>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setListTab("room")}
+                className={`
+                  inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200
+                  ${
+                    listTab === "room"
+                      ? "bg-[#0c2bfc] text-white border-[#0c2bfc] shadow-md"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-[#0c2bfc]/40"
+                  }
+                `}
+              >
+                <FiHome className="w-4 h-4" />
+                Rooms
+              </button>
+              <button
+                type="button"
+                onClick={() => setListTab("cottage")}
+                className={`
+                  inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all duration-200
+                  ${
+                    listTab === "cottage"
+                      ? "bg-[#00af00] text-white border-[#00af00] shadow-md"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-[#00af00]/40"
+                  }
+                `}
+              >
+                <FiSun className="w-4 h-4" />
+                Cottages
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              {listTab === "room" ? "Rooms" : "Cottages"} in list: {rooms.length}
             </div>
           </div>
 
@@ -478,7 +509,8 @@ export default function Rooms() {
                     active:translate-y-0
                   "
                 >
-                  <FiPlus className="w-4 h-4" /> Add
+                    <FiPlus className="w-4 h-4" />{" "}
+                    {listTab === "room" ? "Add room" : "Add cottage"}
                 </button>
               )}
             </div>
@@ -523,34 +555,8 @@ export default function Rooms() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Category Filter */}
               <div className="flex items-center gap-2">
                 <FiFilter className="text-gray-400" />
-                <span className="text-sm text-gray-600 font-medium">
-                  Category
-                </span>
-              </div>
-              <select
-                value={categoryFilter}
-                onChange={(e) => {
-                  setCategoryFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="
-                  h-11 rounded-xl border border-gray-200 
-                  bg-white px-4 text-sm outline-none 
-                  focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-                  text-gray-700 font-medium
-                  transition-all duration-200
-                "
-              >
-                <option value="all">All Types</option>
-                <option value="room">Rooms Only</option>
-                <option value="cottage">Cottages Only</option>
-              </select>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600 font-medium">
                   Status
                 </span>
@@ -569,10 +575,11 @@ export default function Rooms() {
                   transition-all duration-200
                 "
               >
-                <option value="all">All Status</option>
+                <option value="all">All status</option>
                 <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="maintenance">Under Maintenance</option>
+                <option value="maintenance">Under maintenance</option>
+                <option value="clean">Clean</option>
+                <option value="to-clean">To clean</option>
               </select>
             </div>
           </div>
@@ -614,11 +621,7 @@ export default function Rooms() {
                 </svg>
               </div>
               <div className="text-gray-700 font-medium">
-                {categoryFilter === "room"
-                  ? "No rooms found"
-                  : categoryFilter === "cottage"
-                    ? "No cottages found"
-                    : "No items found"}
+                {listTab === "room" ? "No rooms found" : "No cottages found"}
               </div>
               <div className="text-sm text-gray-500 mt-1">
                 Try adjusting your search or filters
@@ -658,11 +661,7 @@ export default function Rooms() {
                 />
               )}
               <div className="text-sm font-semibold text-gray-900">
-                {categoryFilter === "room"
-                  ? `Rooms (${total})`
-                  : categoryFilter === "cottage"
-                    ? `Cottages (${total})`
-                    : `Items (${total})`}
+                {listTab === "room" ? `Rooms (${total})` : `Cottages (${total})`}
               </div>
             </div>
 
@@ -716,10 +715,7 @@ export default function Rooms() {
                     #
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                    Type
-                  </th>
-                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                    Category
+                    {listTab === "room" ? "Room type" : "—"}
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Description
@@ -781,21 +777,12 @@ export default function Rooms() {
 
                     <td className="px-6 py-4">
                       <div className="text-gray-700 font-medium">
-                        {r.roomType?.name || r.roomType || "—"}
+                        {listTab === "room"
+                          ? r.roomType?.name || r.roomType || "—"
+                          : "—"}
                       </div>
                     </td>
 
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          r.category === "cottage"
-                            ? "bg-[#00af00]/10 text-[#00af00]"
-                            : "bg-[#0c2bfc]/10 text-[#0c2bfc]"
-                        }`}
-                      >
-                        {r.category === "cottage" ? "Cottage" : "Room"}
-                      </span>
-                    </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-600 line-clamp-2 max-w-xs">
                         {r.description || "—"}
@@ -814,7 +801,15 @@ export default function Rooms() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <StatusPill value={r.status} />
+                      <div className="space-y-1">
+                        <StatusPill value={r.status} />
+                        {normalizeStatus(r.status) === "maintenance" &&
+                          r.maintenanceReason && (
+                            <div className="text-xs text-gray-500 line-clamp-2 max-w-xs">
+                              {r.maintenanceReason}
+                            </div>
+                          )}
+                      </div>
                     </td>
 
                     {isAdmin && (
@@ -863,11 +858,9 @@ export default function Rooms() {
                         </svg>
                       </div>
                       <div className="text-gray-700 font-medium text-lg">
-                        {categoryFilter === "room"
+                        {listTab === "room"
                           ? "No rooms found"
-                          : categoryFilter === "cottage"
-                            ? "No cottages found"
-                            : "No items found"}
+                          : "No cottages found"}
                       </div>
                       <div className="text-sm text-gray-500 mt-2">
                         Try adjusting your search criteria or add a new item
@@ -890,14 +883,20 @@ export default function Rooms() {
           color="blue"
         />
 
-        {/* Room Modal */}
-        {modal.open && (
-          <RoomModal
-            open={modal.open}
-            mode={modal.mode}
-            room={modal.room}
-            onClose={closeModal}
-            onSave={saveRoom}
+        {roomModal.open && (
+          <RoomFormModal
+            open={roomModal.open}
+            mode={roomModal.mode}
+            room={roomModal.room}
+            onClose={closeRoomModal}
+          />
+        )}
+        {cottageModal.open && (
+          <CottageFormModal
+            open={cottageModal.open}
+            mode={cottageModal.mode}
+            room={cottageModal.room}
+            onClose={closeCottageModal}
           />
         )}
 

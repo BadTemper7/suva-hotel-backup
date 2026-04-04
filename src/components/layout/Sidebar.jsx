@@ -20,7 +20,7 @@ import Logo from "./Logo"; // Import the Logo component
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: FiGrid },
-  { to: "/rooms", label: "Rooms", icon: FiHome },
+  { to: "/rooms", label: "Rooms & Cottages", icon: FiHome },
   { to: "/reservations", label: "Reservations", icon: FiCalendar },
   { to: "/guests", label: "Guest", icon: FiUsers },
   { to: "/users", label: "Users", icon: FiShield },

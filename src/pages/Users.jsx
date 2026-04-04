@@ -36,6 +36,7 @@ function StatusPill({ value }) {
 }
 
 function UserCard({ user, onEdit, selected, onSelect }) {
+  const isUndeletable = user?.role === "superadmin";
   return (
     <div
       className="
@@ -49,7 +50,11 @@ function UserCard({ user, onEdit, selected, onSelect }) {
       <input
         type="checkbox"
         checked={selected}
-        onChange={() => onSelect(user._id)}
+        disabled={isUndeletable}
+        onChange={() => {
+          if (isUndeletable) return;
+          onSelect(user._id);
+        }}
         className="
           mt-1 h-5 w-5 rounded border-gray-300 
           text-[#0c2bfc] focus:ring-[#0c2bfc]/20
@@ -136,6 +141,12 @@ export default function Users() {
   const role = getUserRole();
   const isAdmin = role === "admin" || role === "superadmin";
 
+  const usersById = useMemo(() => {
+    const map = new Map();
+    for (const u of users) map.set(u._id, u);
+    return map;
+  }, [users]);
+
   useEffect(() => {
     fetchUsers().catch((err) =>
       toast.error(err.message || "Failed to fetch users"),
@@ -196,28 +207,43 @@ export default function Users() {
   };
 
   const toggleSelectUser = (id) => {
+    const u = usersById.get(id);
+    if (u?.role === "superadmin") return;
     setSelectedUsers((prev) =>
       prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id],
     );
   };
 
   const toggleSelectAll = () => {
-    if (selectedUsers.length === paged.length) setSelectedUsers([]);
-    else setSelectedUsers(paged.map((u) => u._id));
+    const deletableIds = paged
+      .filter((u) => u.role !== "superadmin")
+      .map((u) => u._id);
+    if (selectedUsers.length === deletableIds.length) setSelectedUsers([]);
+    else setSelectedUsers(deletableIds);
   };
 
   const handleDeleteSelected = async () => {
     if (selectedUsers.length === 0) return;
+
+    const deletableSelected = selectedUsers.filter((id) => {
+      const u = usersById.get(id);
+      return u && u.role !== "superadmin";
+    });
+    if (deletableSelected.length === 0) {
+      toast.error("Superadmin users cannot be deleted.");
+      setSelectedUsers([]);
+      return;
+    }
     if (
       !confirm(
-        `Are you sure you want to delete ${selectedUsers.length} user(s)?`,
+        `Are you sure you want to delete ${deletableSelected.length} user(s)?`,
       )
     )
       return;
 
     try {
-      await deleteManyUsers(selectedUsers);
-      toast.success(`${selectedUsers.length} user(s) deleted successfully`);
+      await deleteManyUsers(deletableSelected);
+      toast.success(`${deletableSelected.length} user(s) deleted successfully`);
       setSelectedUsers([]);
     } catch (err) {
       toast.error(err.message || "Failed to delete selected users");
@@ -436,7 +462,9 @@ export default function Users() {
               <input
                 type="checkbox"
                 checked={
-                  selectedUsers.length === paged.length && paged.length > 0
+                  selectedUsers.length ===
+                    paged.filter((u) => u.role !== "superadmin").length &&
+                  paged.some((u) => u.role !== "superadmin")
                 }
                 onChange={toggleSelectAll}
                 className="
@@ -485,8 +513,9 @@ export default function Users() {
                     <input
                       type="checkbox"
                       checked={
-                        selectedUsers.length === paged.length &&
-                        paged.length > 0
+                        selectedUsers.length ===
+                          paged.filter((u) => u.role !== "superadmin").length &&
+                        paged.some((u) => u.role !== "superadmin")
                       }
                       onChange={toggleSelectAll}
                       className="h-5 w-5 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/20"
@@ -531,6 +560,7 @@ export default function Users() {
                       <input
                         type="checkbox"
                         checked={selectedUsers.includes(u._id)}
+                        disabled={u.role === "superadmin"}
                         onChange={() => toggleSelectUser(u._id)}
                         className="
                           h-5 w-5 rounded border-gray-300 

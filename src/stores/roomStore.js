@@ -9,9 +9,10 @@ export const useRoomStore = create((set, get) => ({
   rooms: [],
   loading: false,
   error: null,
+  lastListParams: {},
 
   fetchRooms: async (params = {}) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, lastListParams: params });
     try {
       const token = getToken();
       if (!token) throw new Error("No token found, please login");
@@ -63,7 +64,7 @@ export const useRoomStore = create((set, get) => ({
       if (!res.ok)
         throw new Error(data.message || data.error || "Failed to create room");
 
-      await get().fetchRooms();
+      await get().fetchRooms(get().lastListParams);
       set({ loading: false });
       return data;
     } catch (err) {
@@ -101,7 +102,7 @@ export const useRoomStore = create((set, get) => ({
       if (!res.ok)
         throw new Error(data.message || data.error || "Failed to update room");
 
-      await get().fetchRooms();
+      await get().fetchRooms(get().lastListParams);
       set({ loading: false });
       return data;
     } catch (err) {
@@ -161,11 +162,8 @@ export const useRoomStore = create((set, get) => ({
         throw new Error(err.error || "Failed to delete rooms");
       }
 
-      // Remove deleted rooms from state
-      set({
-        rooms: get().rooms.filter((r) => !roomIds.includes(r._id)),
-        loading: false,
-      });
+      await get().fetchRooms(get().lastListParams);
+      set({ loading: false });
     } catch (err) {
       set({ error: err.message || "Failed to delete rooms", loading: false });
       throw err;

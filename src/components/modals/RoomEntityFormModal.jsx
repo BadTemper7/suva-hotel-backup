@@ -6,15 +6,53 @@ import {
   FiCheckCircle,
   FiXCircle,
   FiClock,
-  FiHome,
-  FiSun,
+  FiDroplet,
 } from "react-icons/fi";
 import { useRoomTypeStore } from "../../stores/roomTypeStore";
 import { useRoomStore } from "../../stores/roomStore";
 import Loader from "../layout/Loader";
 import toast from "react-hot-toast";
 
-export default function RoomModal({ open, mode, room, onClose }) {
+const statusOptions = [
+  {
+    value: "active",
+    label: "Active",
+    icon: FiCheckCircle,
+    color: "text-[#00af00]",
+    bgColor: "bg-[#00af00]/10",
+    borderColor: "border-[#00af00]",
+    ringColor: "ring-[#00af00]/20",
+  },
+  {
+    value: "maintenance",
+    label: "Maintenance",
+    icon: FiClock,
+    color: "text-[#0c2bfc]",
+    bgColor: "bg-[#0c2bfc]/10",
+    borderColor: "border-[#0c2bfc]",
+    ringColor: "ring-[#0c2bfc]/20",
+  },
+  {
+    value: "clean",
+    label: "Clean",
+    icon: FiDroplet,
+    color: "text-emerald-700",
+    bgColor: "bg-emerald-50",
+    borderColor: "border-emerald-300",
+    ringColor: "ring-emerald-200",
+  },
+  {
+    value: "to-clean",
+    label: "To clean",
+    icon: FiXCircle,
+    color: "text-amber-800",
+    bgColor: "bg-amber-50",
+    borderColor: "border-amber-300",
+    ringColor: "ring-amber-200",
+  },
+];
+
+export default function RoomEntityFormModal({ open, mode, room, onClose, kind }) {
   const fileInputRef = useRef(null);
   const { roomTypes, fetchRoomTypes } = useRoomTypeStore();
   const { createRoom, updateRoom } = useRoomStore();
@@ -25,78 +63,24 @@ export default function RoomModal({ open, mode, room, onClose }) {
   const [status, setStatus] = useState("active");
   const [rate, setRate] = useState("");
   const [capacity, setCapacity] = useState("");
-  const [category, setCategory] = useState("room");
-
   const [previews, setPreviews] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
   const [deletedImageIds, setDeletedImageIds] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [description, setDescription] = useState("");
-  // Category options
-  const categoryOptions = [
-    {
-      value: "room",
-      label: "Room",
-      icon: FiHome,
-      color: "text-[#0c2bfc]",
-      bgColor: "bg-[#0c2bfc]/10",
-      borderColor: "border-[#0c2bfc]",
-    },
-    {
-      value: "cottage",
-      label: "Cottage",
-      icon: FiSun,
-      color: "text-[#00af00]",
-      bgColor: "bg-[#00af00]/10",
-      borderColor: "border-[#00af00]",
-    },
-  ];
+  const [maintenanceReason, setMaintenanceReason] = useState("");
 
-  // Room status options with border colors for ring effect
-  const statusOptions = [
-    {
-      value: "active",
-      label: "Active",
-      icon: FiCheckCircle,
-      color: "text-[#00af00]",
-      bgColor: "bg-[#00af00]/10",
-      borderColor: "border-[#00af00]",
-      ringColor: "ring-[#00af00]/20",
-    },
-    {
-      value: "inactive",
-      label: "Inactive",
-      icon: FiXCircle,
-      color: "text-gray-600",
-      bgColor: "bg-gray-100",
-      borderColor: "border-gray-400",
-      ringColor: "ring-gray-200",
-    },
-    {
-      value: "maintenance",
-      label: "Maintenance",
-      icon: FiClock,
-      color: "text-[#0c2bfc]",
-      bgColor: "bg-[#0c2bfc]/10",
-      borderColor: "border-[#0c2bfc]",
-      ringColor: "ring-[#0c2bfc]/20",
-    },
-    {
-      value: "cleaning",
-      label: "Cleaning",
-      icon: FiClock,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
-      borderColor: "border-blue-400",
-      ringColor: "ring-blue-200",
-    },
-  ];
+  const isRoom = kind === "room";
+  const label = isRoom ? "Room" : "Cottage";
 
   useEffect(() => {
-    fetchRoomTypes();
-  }, [fetchRoomTypes]);
+    if (isRoom) fetchRoomTypes();
+  }, [fetchRoomTypes, isRoom]);
 
-  /* -------------------- PREFILL -------------------- */
+  useEffect(() => {
+    if (status !== "maintenance") setMaintenanceReason("");
+  }, [status]);
+
   useEffect(() => {
     if (!open) return;
 
@@ -106,8 +90,8 @@ export default function RoomModal({ open, mode, room, onClose }) {
       setStatus(room.status ?? "active");
       setRate(room.rate ?? "");
       setCapacity(room.capacity ?? "");
-      setCategory(room.category ?? "room");
-      setDescription(room.description ?? ""); // Add this line
+      setDescription(room.description ?? "");
+      setMaintenanceReason(room.maintenanceReason ?? "");
 
       setPreviews(
         room.images?.map((img) => ({
@@ -127,8 +111,8 @@ export default function RoomModal({ open, mode, room, onClose }) {
       setStatus("active");
       setRate("");
       setCapacity("");
-      setCategory("room");
-      setDescription(""); // Add this line
+      setDescription("");
+      setMaintenanceReason("");
       setPreviews([]);
       setImageFiles([]);
       setDeletedImageIds([]);
@@ -137,7 +121,6 @@ export default function RoomModal({ open, mode, room, onClose }) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [open, mode, room]);
 
-  /* -------------------- CLEANUP -------------------- */
   useEffect(() => {
     return () => {
       previews.forEach((img) => {
@@ -161,7 +144,6 @@ export default function RoomModal({ open, mode, room, onClose }) {
     onClose?.();
   }
 
-  /* -------------------- IMAGE HANDLING -------------------- */
   function addFiles(files) {
     const valid = Array.from(files).filter((f) => f.type.startsWith("image/"));
     if (!valid.length) return;
@@ -195,40 +177,25 @@ export default function RoomModal({ open, mode, room, onClose }) {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function clearAllImages() {
-    previews.forEach((img) => {
-      if (img.type === "existing" && img.publicId) {
-        setDeletedImageIds((prev) => [...prev, img.publicId]);
-      }
-      if (img.type === "new" && img.url?.startsWith("blob:")) {
-        URL.revokeObjectURL(img.url);
-      }
-    });
+  const capNum = Number(capacity);
+  const rateNum = Number(rate);
+  const descTrim = description.trim();
+  const reasonTrim = maintenanceReason.trim();
 
-    setPreviews([]);
-    setImageFiles([]);
-  }
-
-  /* -------------------- SUBMIT -------------------- */
-  const canSave = (() => {
-    // Basic required fields
-    if (
-      !roomNumber ||
-      rate === "" ||
-      capacity === "" ||
-      isNaN(rate) ||
-      isNaN(capacity)
-    ) {
-      return false;
-    }
-
-    // Room type is only required for rooms
-    if (category === "room" && !roomType) {
-      return false;
-    }
-
-    return true;
-  })();
+  const canSave =
+    Boolean(roomNumber.trim()) &&
+    rate !== "" &&
+    capacity !== "" &&
+    Number.isFinite(rateNum) &&
+    rateNum >= 0 &&
+    Number.isFinite(capNum) &&
+    Number.isInteger(capNum) &&
+    capNum >= 1 &&
+    descTrim.length > 0 &&
+    previews.length > 0 &&
+    (!isRoom || Boolean(roomType)) &&
+    (status !== "maintenance" || reasonTrim.length > 0) &&
+    (mode === "add" ? imageFiles.length > 0 : previews.length > 0);
 
   async function submit(e) {
     e.preventDefault();
@@ -242,43 +209,28 @@ export default function RoomModal({ open, mode, room, onClose }) {
       payload.append("status", status);
       payload.append("rate", rate);
       payload.append("capacity", capacity);
-      payload.append("category", category);
-      payload.append("description", description);
+      payload.append("category", kind);
+      payload.append("description", descTrim);
+      payload.append("maintenanceReason", status === "maintenance" ? reasonTrim : "");
 
-      // Only append roomType if it's a room
-      if (category === "room" && roomType) {
+      if (isRoom && roomType) {
         payload.append("roomType", roomType);
       }
 
       imageFiles.forEach((file) => payload.append("images", file));
       deletedImageIds.forEach((id) => payload.append("deletedImages", id));
 
-      console.log("Submitting room data:", {
-        roomNumber: roomNumber.trim(),
-        ...(category === "room" && { roomType }),
-        status,
-        rate,
-        capacity,
-        category,
-        imageFiles: imageFiles.length,
-        deletedImageIds: deletedImageIds.length,
-      });
-
       if (mode === "add") {
         await createRoom(payload);
-        toast.success(
-          `${category === "cottage" ? "Cottage" : "Room"} created successfully`,
-        );
+        toast.success(`${label} created successfully`);
       } else {
         await updateRoom(room._id, payload);
-        toast.success(
-          `${category === "cottage" ? "Cottage" : "Room"} updated successfully`,
-        );
+        toast.success(`${label} updated successfully`);
       }
 
       handleClose();
     } catch (err) {
-      console.error("Error submitting:", err);
+      console.error(err);
       toast.error(err.message || "Something went wrong");
     } finally {
       setUploading(false);
@@ -291,27 +243,24 @@ export default function RoomModal({ open, mode, room, onClose }) {
     <AnimatePresence>
       {open && (
         <motion.div className="fixed inset-0 z-50">
-          {/* Overlay */}
           <motion.button
+            type="button"
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            aria-label="Close"
             onClick={handleClose}
           />
 
-          {/* Modal */}
           <div className="absolute inset-0 flex items-end sm:items-center justify-center p-3 sm:p-6">
-            <motion.div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden relative">
-              {/* Loader */}
+            <motion.div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden relative max-h-[90vh] flex flex-col">
               {uploading && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm rounded-2xl">
                   <Loader size={50} variant="primary" />
                 </div>
               )}
 
-              {/* Header */}
-              <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <div className="px-5 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
                 <div className="text-sm font-semibold text-gray-900">
-                  {mode === "add" ? "Add" : "Edit"}{" "}
-                  {category === "cottage" ? "Cottage" : "Room"}
+                  {mode === "add" ? "Add" : "Edit"} {label}
                 </div>
                 <button
                   type="button"
@@ -323,14 +272,14 @@ export default function RoomModal({ open, mode, room, onClose }) {
                 </button>
               </div>
 
-              {/* Body */}
-              <form onSubmit={submit} className="p-5 space-y-6">
-                {/* IMAGE UPLOAD */}
+              <form
+                onSubmit={submit}
+                className="p-5 space-y-6 overflow-y-auto flex-1 min-h-0"
+              >
                 <div>
                   <div className="text-xs font-medium text-gray-600 mb-1">
-                    {category === "cottage" ? "Cottage" : "Room"} Images
+                    {label} images *
                   </div>
-
                   <div
                     onClick={() => fileInputRef.current?.click()}
                     onDragOver={(e) => {
@@ -422,77 +371,31 @@ export default function RoomModal({ open, mode, room, onClose }) {
                       className="hidden"
                     />
                   </div>
+                  {mode === "add" && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      At least one new image is required when adding.
+                    </p>
+                  )}
                 </div>
 
-                {/* Category Selection */}
-                <div>
-                  <label className="text-xs font-medium text-gray-600 mb-3 block">
-                    Category *
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {categoryOptions.map((option) => {
-                      const Icon = option.icon;
-                      const isSelected = category === option.value;
-
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => {
-                            setCategory(option.value);
-                            // Clear room type when switching to cottage
-                            if (option.value === "cottage") {
-                              setRoomType("");
-                            }
-                          }}
-                          className={`
-                            rounded-xl border px-3 py-3 flex items-center justify-center gap-2 
-                            transition-all duration-200
-                            ${isSelected ? "ring-2 ring-offset-2" : ""}
-                            ${isSelected ? option.ringColor || "ring-[#0c2bfc]/20" : ""}
-                            ${isSelected ? option.bgColor : "bg-white hover:bg-gray-50"}
-                            ${isSelected ? option.borderColor : "border-gray-200"}
-                          `}
-                        >
-                          <Icon
-                            className={`${option.color} ${isSelected ? "scale-110" : ""}`}
-                          />
-                          <span
-                            className={`text-sm font-medium ${isSelected ? option.color : "text-gray-700"}`}
-                          >
-                            {option.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* FIELDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Room/Cottage Number */}
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">
-                      {category === "cottage"
-                        ? "Cottage Number *"
-                        : "Room Number *"}
+                      {isRoom ? "Room number *" : "Cottage number *"}
                     </label>
                     <input
                       value={roomNumber}
                       onChange={(e) => setRoomNumber(e.target.value)}
                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200"
-                      placeholder={
-                        category === "cottage" ? "e.g., COT-001" : "e.g., 101"
-                      }
+                      placeholder={isRoom ? "e.g., 101" : "e.g., COT-001"}
                       required
                     />
                   </div>
 
-                  {/* Room Type - Only show for rooms */}
-                  {category === "room" && (
+                  {isRoom && (
                     <div>
                       <label className="text-xs font-medium text-gray-600 mb-1 block">
-                        Room Type *
+                        Room type *
                       </label>
                       <select
                         value={roomType}
@@ -512,10 +415,7 @@ export default function RoomModal({ open, mode, room, onClose }) {
                     </div>
                   )}
 
-                  {/* Rate */}
-                  <div
-                    className={category === "cottage" ? "sm:col-span-2" : ""}
-                  >
+                  <div className={isRoom ? "" : "sm:col-span-2"}>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">
                       Rate (PHP) *
                     </label>
@@ -531,7 +431,6 @@ export default function RoomModal({ open, mode, room, onClose }) {
                     />
                   </div>
 
-                  {/* Capacity */}
                   <div>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">
                       Capacity *
@@ -543,16 +442,15 @@ export default function RoomModal({ open, mode, room, onClose }) {
                       className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200"
                       placeholder="e.g., 2"
                       min="1"
+                      step="1"
                       required
                     />
                   </div>
                 </div>
 
-                {/* Description Field - Full width */}
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-1 block">
-                    Description
-                    <span className="text-gray-400 ml-1">(Optional)</span>
+                    Description *
                   </label>
                   <textarea
                     value={description}
@@ -560,23 +458,19 @@ export default function RoomModal({ open, mode, room, onClose }) {
                     rows={4}
                     className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200 resize-none"
                     placeholder={
-                      category === "cottage"
-                        ? "Describe the cottage features, amenities, location, nearby attractions, etc..."
-                        : "Describe the room features, view, amenities, size, bed type, etc..."
+                      isRoom
+                        ? "Room features, view, amenities, bed type…"
+                        : "Cottage features, amenities, location…"
                     }
+                    required
                   />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Add details to help guests understand what this{" "}
-                    {category === "cottage" ? "cottage" : "room"} offers.
-                  </p>
                 </div>
 
-                {/* Status Selection */}
                 <div>
                   <label className="text-xs font-medium text-gray-600 mb-3 block">
                     Status *
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {statusOptions.map((option) => {
                       const Icon = option.icon;
                       const isSelected = status === option.value;
@@ -609,7 +503,22 @@ export default function RoomModal({ open, mode, room, onClose }) {
                   </div>
                 </div>
 
-                {/* Form Actions */}
+                {status === "maintenance" && (
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">
+                      Maintenance reason *
+                    </label>
+                    <textarea
+                      value={maintenanceReason}
+                      onChange={(e) => setMaintenanceReason(e.target.value)}
+                      rows={3}
+                      className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200 resize-none"
+                      placeholder="Why is this unit under maintenance?"
+                      required
+                    />
+                  </div>
+                )}
+
                 <div className="flex justify-end gap-2 pt-4 border-t border-gray-200">
                   <button
                     type="button"
@@ -627,7 +536,7 @@ export default function RoomModal({ open, mode, room, onClose }) {
                         : "bg-gray-400 cursor-not-allowed"
                     }`}
                   >
-                    {mode === "add" ? "Add" : "Save Changes"}
+                    {mode === "add" ? "Add" : "Save changes"}
                   </button>
                 </div>
               </form>
