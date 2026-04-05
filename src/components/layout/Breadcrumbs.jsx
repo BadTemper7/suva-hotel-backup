@@ -9,6 +9,7 @@ const labelMap = {
   amenities: "Amenities",
   "add-ons": "Add-Ons",
   reservations: "Reservations",
+  "front-desk": "Front desk",
   guests: "Guests",
   billing: "Billing",
   inbox: "Inbox",

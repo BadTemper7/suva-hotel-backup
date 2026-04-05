@@ -14,6 +14,7 @@ import {
   FiBarChart2,
   FiShield,
   FiMail,
+  FiLogIn,
 } from "react-icons/fi";
 
 import Logo from "./Logo"; // Import the Logo component
@@ -22,6 +23,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: FiGrid },
   { to: "/rooms", label: "Rooms & Cottages", icon: FiHome },
   { to: "/reservations", label: "Reservations", icon: FiCalendar },
+  { to: "/front-desk", label: "Front desk", icon: FiLogIn },
   { to: "/guests", label: "Guest", icon: FiUsers },
   { to: "/users", label: "Users", icon: FiShield },
   { to: "/billing", label: "Billing", icon: FiCreditCard },

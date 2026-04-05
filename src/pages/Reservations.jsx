@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   FiEdit2,
   FiSearch,
-  FiChevronLeft,
-  FiChevronRight,
   FiPlus,
   FiTrash2,
   FiEye,
@@ -15,9 +13,7 @@ import {
   FiCreditCard,
   FiClock,
   FiSun,
-  FiCalendar as FiCalendarIcon,
   FiArrowRight,
-  FiCheckCircle,
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -65,6 +61,19 @@ function isComplimentaryReservation(reservation) {
   return note.includes("complimentary");
 }
 
+function startOfLocalDay(d) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function isToday(dateVal) {
+  if (!dateVal) return false;
+  const d = startOfLocalDay(dateVal);
+  const t = startOfLocalDay(new Date());
+  return d.getTime() === t.getTime();
+}
+
 function StatusPill({ value }) {
   const v = normalizeStatus(value);
   const label =
@@ -102,29 +111,18 @@ function ReservationCard({
     ? `${reservation?.userId?.firstName || ""} ${reservation?.userId?.lastName || ""}`
     : "—";
   const isComplimentary = isComplimentaryReservation(reservation);
-
-  const isToday = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    return checkDate.getTime() === today.getTime();
-  };
-
   const isCheckInToday = isToday(reservation.checkIn);
   const isCheckOutToday = isToday(reservation.checkOut);
 
   return (
     <div
-      className={`
+      className="
       rounded-xl border 
       bg-white
       p-4 flex items-start gap-4
       shadow-sm hover:shadow-md transition-all duration-300
       hover:-translate-y-0.5
-      ${isCheckInToday ? "border-l-4 border-l-green-500" : ""}
-      ${isCheckOutToday ? "border-r-4 border-r-orange-500" : ""}
-    `}
+    "
     >
       <input
         type="checkbox"
@@ -298,7 +296,7 @@ export default function Reservations() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [complimentaryFilter, setComplimentaryFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("all"); // all, checkin_today, checkout_today, upcoming, past
+  const [dateFilter, setDateFilter] = useState("all");
   const [modal, setModal] = useState({ open: false, reservation: null });
   const [deleteModal, setDeleteModal] = useState({
     open: false,
@@ -320,37 +318,9 @@ export default function Reservations() {
     );
   }, [fetchReservations]);
 
-  // Helper function to check if a date is today
-  const isToday = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    return checkDate.getTime() === today.getTime();
-  };
-
-  // Helper function to check if a date is upcoming (after today)
-  const isUpcoming = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    return checkDate > today;
-  };
-
-  // Helper function to check if a date is past (before today)
-  const isPast = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    return checkDate < today;
-  };
-
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return reservations.filter((r) => {
-      // Status filter
       const st = normalizeStatus(r.status);
       if (statusFilter !== "all" && st !== statusFilter) return false;
       if (
@@ -360,25 +330,20 @@ export default function Reservations() {
         return false;
       }
 
-      // Date filter
-      if (dateFilter !== "all") {
-        const isCheckInToday = isToday(r.checkIn);
-        const isCheckOutToday = isToday(r.checkOut);
-        const isCheckInUpcoming = isUpcoming(r.checkIn);
-        const isCheckOutPast = isPast(r.checkOut);
-
-        if (dateFilter === "checkin_today") {
-          if (!isCheckInToday) return false;
-        } else if (dateFilter === "checkout_today") {
-          if (!isCheckOutToday) return false;
-        } else if (dateFilter === "upcoming") {
-          if (!isCheckInUpcoming) return false;
-        } else if (dateFilter === "past") {
-          if (!isCheckOutPast) return false;
-        }
+      if (dateFilter === "checkin_today" && !isToday(r.checkIn)) return false;
+      if (dateFilter === "checkout_today" && !isToday(r.checkOut))
+        return false;
+      if (dateFilter === "upcoming") {
+        const ci = r.checkIn ? startOfLocalDay(r.checkIn) : null;
+        const today = startOfLocalDay(new Date());
+        if (!ci || ci < today) return false;
+      }
+      if (dateFilter === "past") {
+        const co = r.checkOut ? startOfLocalDay(r.checkOut) : null;
+        const today = startOfLocalDay(new Date());
+        if (!co || co >= today) return false;
       }
 
-      // Search filter
       if (!s) return true;
 
       const guestName = `${r?.guestId?.firstName || ""} ${
@@ -469,9 +434,9 @@ export default function Reservations() {
     }
   };
 
-  const saveStatus = async (status, notes) => {
+  const saveStatus = async (status) => {
     try {
-      await updateReservationStatus(modal.reservation._id, status, notes);
+      await updateReservationStatus(modal.reservation._id, status);
       toast.success("Reservation updated successfully");
       closeModal();
     } catch (err) {
@@ -499,14 +464,6 @@ export default function Reservations() {
   const goToAvailableRoomsToday = () => {
     navigate("/available-today");
   };
-
-  // Get counts for date filters
-  const checkInTodayCount = reservations.filter((r) =>
-    isToday(r.checkIn),
-  ).length;
-  const checkOutTodayCount = reservations.filter((r) =>
-    isToday(r.checkOut),
-  ).length;
 
   return (
     <>
@@ -608,87 +565,6 @@ export default function Reservations() {
           </div>
         </div>
 
-        {/* Date Filter Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <button
-            onClick={() =>
-              setDateFilter(
-                dateFilter === "checkin_today" ? "all" : "checkin_today",
-              )
-            }
-            className={`
-              rounded-xl border p-4 text-left transition-all duration-200
-              hover:shadow-md hover:-translate-y-0.5
-              ${
-                dateFilter === "checkin_today"
-                  ? "border-green-500 bg-green-50 shadow-md"
-                  : "border-gray-200 bg-white hover:border-green-300"
-              }
-            `}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-green-600 mb-1">
-                  <FiSun className="w-5 h-5" />
-                  <span className="text-xs font-semibold uppercase tracking-wide">
-                    Check-in Today
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {checkInTodayCount}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Guests arriving today
-                </div>
-              </div>
-              {dateFilter === "checkin_today" && (
-                <div className="text-green-600">
-                  <FiCheckCircle className="w-6 h-6" />
-                </div>
-              )}
-            </div>
-          </button>
-
-          <button
-            onClick={() =>
-              setDateFilter(
-                dateFilter === "checkout_today" ? "all" : "checkout_today",
-              )
-            }
-            className={`
-              rounded-xl border p-4 text-left transition-all duration-200
-              hover:shadow-md hover:-translate-y-0.5
-              ${
-                dateFilter === "checkout_today"
-                  ? "border-orange-500 bg-orange-50 shadow-md"
-                  : "border-gray-200 bg-white hover:border-orange-300"
-              }
-            `}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 text-orange-600 mb-1">
-                  <FiArrowRight className="w-5 h-5" />
-                  <span className="text-xs font-semibold uppercase tracking-wide">
-                    Check-out Today
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {checkOutTodayCount}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Guests departing today
-                </div>
-              </div>
-              {dateFilter === "checkout_today" && (
-                <div className="text-orange-600">
-                  <FiCheckCircle className="w-6 h-6" />
-                </div>
-              )}
-            </div>
-          </button>
-        </div>
-
         {/* Search + Filter */}
         <div
           className="
@@ -776,7 +652,28 @@ export default function Reservations() {
                 <option value="complimentary">Free</option>
               </select>
 
-              {/* Clear filter button */}
+              <select
+                value={dateFilter}
+                onChange={(e) => {
+                  setDateFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="
+                  h-11 rounded-xl border border-gray-200
+                  bg-white px-4 text-sm outline-none
+                  focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                  text-gray-700 font-medium
+                  transition-all duration-200
+                "
+                title="Filter by check-in / check-out date"
+              >
+                <option value="all">Any date</option>
+                <option value="checkin_today">Check-in today</option>
+                <option value="checkout_today">Check-out today</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past</option>
+              </select>
+
               {(dateFilter !== "all" ||
                 statusFilter !== "all" ||
                 complimentaryFilter !== "all" ||
@@ -886,17 +783,6 @@ export default function Reservations() {
               <div className="text-sm font-semibold text-gray-900">
                 Reservations ({total})
               </div>
-              {dateFilter !== "all" && (
-                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                  {dateFilter === "checkin_today"
-                    ? "📅 Check-in Today"
-                    : dateFilter === "checkout_today"
-                      ? "📅 Check-out Today"
-                      : dateFilter === "upcoming"
-                        ? "📅 Upcoming"
-                        : "📅 Past"}
-                </span>
-              )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -988,13 +874,11 @@ export default function Reservations() {
                   return (
                     <tr
                       key={r._id}
-                      className={`
+                      className="
                         border-b border-gray-100 last:border-b-0
                         hover:bg-gray-50
                         transition-colors duration-150
-                        ${isCheckInToday ? "bg-green-50/30" : ""}
-                        ${isCheckOutToday ? "bg-orange-50/30" : ""}
-                      `}
+                      "
                     >
                       {isAdmin && (
                         <td className="px-6 py-4">
