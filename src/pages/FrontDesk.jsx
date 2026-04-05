@@ -241,6 +241,13 @@ export default function FrontDesk() {
     });
   };
 
+  const refreshBillingInGuard = useCallback(async () => {
+    const r = checkInGuard.reservation;
+    if (!r?._id) return;
+    const b = await fetchBillingByReservationId(r._id);
+    setCheckInGuard((prev) => ({ ...prev, billing: b }));
+  }, [checkInGuard.reservation, fetchBillingByReservationId]);
+
   const confirmCheckInAnyway = async () => {
     const r = checkInGuard.reservation;
     if (!r) return;
@@ -580,6 +587,7 @@ export default function FrontDesk() {
         loading={checkInLoading}
         onClose={closeGuard}
         onConfirmCheckIn={confirmCheckInAnyway}
+        onBillingRefresh={refreshBillingInGuard}
       />
     </>
   );

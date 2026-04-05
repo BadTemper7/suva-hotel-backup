@@ -9,6 +9,7 @@ export default function ReceiptUploadModal({
   billing,
   onClose,
   onSuccess,
+  overlayZClass = "z-50",
 }) {
   const { createReceipt, loading, error, clearError } = useReceiptStore();
   const {
@@ -179,7 +180,7 @@ export default function ReceiptUploadModal({
       );
 
       if (onSuccess) {
-        onSuccess(result);
+        await Promise.resolve(onSuccess(result));
       }
 
       resetForm();
@@ -217,7 +218,9 @@ export default function ReceiptUploadModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div
+      className={`fixed inset-0 ${overlayZClass} flex items-center justify-center bg-black/40 backdrop-blur-sm p-4`}
+    >
       <div className="bg-white rounded-2xl w-full max-w-md p-6 relative shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto">
         <button
           type="button"
