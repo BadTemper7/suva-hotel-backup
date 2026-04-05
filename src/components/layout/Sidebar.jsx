@@ -18,6 +18,9 @@ import {
 } from "react-icons/fi";
 
 import Logo from "./Logo"; // Import the Logo component
+import { useUserStore } from "../../stores/userStore.js";
+import { getStoredUser } from "../../app/auth.js";
+import { canAccessPath } from "../../utils/staffPermissions.js";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: FiGrid },
@@ -35,6 +38,12 @@ const NAV = [
 ];
 
 export default function Sidebar({ collapsed, setCollapsed }) {
+  const storeUser = useUserStore((s) => s.currentUser);
+  const user = getStoredUser() ?? storeUser;
+  const navItems = user
+    ? NAV.filter((item) => canAccessPath(user, item.to))
+    : NAV;
+
   const active = "bg-[#0c2bfc] text-white shadow-md";
   const inactive =
     "text-gray-600 hover:bg-gray-50 hover:text-[#0c2bfc] hover:border-gray-200";
@@ -96,7 +105,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
           "sidebar-nav", // For responsive height adjustments
         ].join(" ")}
       >
-        {NAV.map((item) => {
+        {navItems.map((item) => {
           const Icon = item.icon;
           const isHovered = hoveredItem === item.label;
 

@@ -606,9 +606,11 @@ export const useUserStore = create(
   ),
 );
 
-// Initialize the store on import
 const store = useUserStore.getState();
 store.initialize();
+if (getToken()) {
+  store.getCurrentUserFromAPI().catch(() => {});
+}
 
 // Export store instance for use in non-React files
 export default useUserStore;

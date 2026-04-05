@@ -6,7 +6,8 @@ import { Helmet } from "react-helmet";
 import RoomTypeModal from "../components/modals/RoomTypeModal.jsx";
 import { useRoomTypeStore } from "../stores/roomTypeStore.js";
 import Loader from "../components/layout/Loader.jsx";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import { isAdminRole } from "../utils/staffPermissions.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
@@ -157,14 +158,11 @@ export default function RoomTypes() {
     roomType: null,
   });
 
-  // Get user role
-  const userRole = getUserRole();
-
-  // Check permissions - only admin and superadmin can edit and delete
-  // Everyone can add (including receptionists)
-  const canEdit = userRole === "admin" || userRole === "superadmin";
-  const canDelete = userRole === "admin" || userRole === "superadmin";
-  const canAdd = true; // Everyone can add room types
+  const user = getUser();
+  const userRole = user?.role;
+  const canEdit = isAdminRole(userRole);
+  const canDelete = isAdminRole(userRole);
+  const canAdd = isAdminRole(userRole);
 
   useEffect(() => {
     fetchRoomTypes().catch((err) =>
@@ -189,6 +187,10 @@ export default function RoomTypes() {
   );
 
   function openAdd() {
+    if (!canAdd) {
+      toast.error("You don't have permission to add room types");
+      return;
+    }
     setModal({ open: true, mode: "add", roomType: null });
   }
 
@@ -205,6 +207,14 @@ export default function RoomTypes() {
   }
 
   async function saveRoomType(payload) {
+    if (modal.mode === "add" && !canAdd) {
+      toast.error("You don't have permission to add room types");
+      return;
+    }
+    if (modal.mode === "edit" && !canEdit) {
+      toast.error("You don't have permission to edit room types");
+      return;
+    }
     try {
       if (modal.mode === "add") {
         await createRoomType({
@@ -246,16 +256,9 @@ export default function RoomTypes() {
     });
   };
 
-  // Get role display name for info message
-  const getRoleWarningMessage = () => {
-    if (userRole === "receptionist" || userRole === "staff") {
-      return "You can add room types, but cannot edit or delete existing ones.";
-    }
-    return "";
-  };
-
-  // Check if user is view-only for edit/delete
   const isViewOnlyForEdit = !canEdit;
+  const getRoleWarningMessage = () =>
+    isViewOnlyForEdit ? "You have view-only access to room types." : "";
 
   return (
     <>
@@ -302,10 +305,11 @@ export default function RoomTypes() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={openAdd}
-            className="
+          {canAdd && (
+            <button
+              type="button"
+              onClick={openAdd}
+              className="
               h-11 px-5 rounded-xl 
               bg-[#0c2bfc] 
               hover:bg-[#0a24d6]
@@ -314,11 +318,12 @@ export default function RoomTypes() {
               hover:shadow-lg hover:-translate-y-0.5
               active:translate-y-0
             "
-            title="Add Room Type"
-          >
-            <FiPlus className="w-4 h-4" />
-            Add Room Type
-          </button>
+              title="Add Room Type"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Room Type
+            </button>
+          )}
         </div>
 
         {/* Search + Filter */}
@@ -426,12 +431,15 @@ export default function RoomTypes() {
             <div className="text-sm text-gray-500 mt-2">
               {q || statusFilter !== "all"
                 ? "Try adjusting your search or filters"
-                : "Add your first room type to get started"}
+                : canAdd
+                  ? "Add your first room type to get started"
+                  : "No room types match the current filters."}
             </div>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="
+            {canAdd && (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="
                 mt-4 h-10 px-4 rounded-xl 
                 bg-[#0c2bfc] 
                 hover:bg-[#0a24d6]
@@ -440,10 +448,11 @@ export default function RoomTypes() {
                 hover:shadow-md hover:-translate-y-0.5
                 active:translate-y-0
               "
-            >
-              <FiPlus className="w-4 h-4" />
-              Add Room Type
-            </button>
+              >
+                <FiPlus className="w-4 h-4" />
+                Add Room Type
+              </button>
+            )}
           </div>
         )}
 

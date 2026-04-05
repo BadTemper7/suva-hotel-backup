@@ -26,6 +26,8 @@ import {
   selectDeparturesToday,
   selectCheckedOutToday,
 } from "../utils/frontDesk.js";
+import { getUser } from "../app/auth.js";
+import { canManageFeature } from "../utils/staffPermissions.js";
 
 const STANDARD_CHECKOUT_HOUR = 12;
 const STANDARD_CHECKOUT_MINUTE = 0;
@@ -120,6 +122,7 @@ function TabButton({ active, onClick, children }) {
 
 export default function FrontDesk() {
   const navigate = useNavigate();
+  const canManageFrontDesk = canManageFeature(getUser(), "frontDesk");
   const reservations = useReservationStore((s) => s.reservations);
   const fetchReservations = useReservationStore((s) => s.fetchReservations);
   const updateReservationStatus = useReservationStore(
@@ -533,7 +536,7 @@ export default function FrontDesk() {
                               <button
                                 type="button"
                                 onClick={() => runCheckIn(r)}
-                                disabled={checkInLoading}
+                                disabled={checkInLoading || !canManageFrontDesk}
                                 className="h-9 px-3 rounded-xl bg-[#0c2bfc] text-white text-xs font-medium hover:bg-[#0a24d6] disabled:opacity-60 inline-flex items-center gap-1"
                               >
                                 <FiLogIn className="h-3.5 w-3.5" />
@@ -544,7 +547,10 @@ export default function FrontDesk() {
                               <button
                                 type="button"
                                 onClick={() => runCheckOut(r)}
-                                disabled={checkoutLoadingId === r._id}
+                                disabled={
+                                  checkoutLoadingId === r._id ||
+                                  !canManageFrontDesk
+                                }
                                 className="h-9 px-3 rounded-xl border border-orange-200 bg-orange-50 text-orange-800 text-xs font-medium hover:bg-orange-100 disabled:opacity-60 inline-flex items-center gap-1"
                               >
                                 <FiLogOut className="h-3.5 w-3.5" />

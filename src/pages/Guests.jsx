@@ -19,7 +19,8 @@ import { Helmet } from "react-helmet";
 import Loader from "../components/layout/Loader.jsx";
 import GuestModal from "../components/modals/GuestModal.jsx";
 import { useGuestStore } from "../stores/guestStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import { canManageFeature } from "../utils/staffPermissions.js";
 import Pagination from "../components/ui/Pagination.jsx";
 
 function AccountBadge({ hasAccount }) {
@@ -46,7 +47,7 @@ function AccountBadge({ hasAccount }) {
   );
 }
 
-function GuestCard({ guest, onEdit, selected, onSelect }) {
+function GuestCard({ guest, onEdit, selected, onSelect, canManage }) {
   return (
     <div
       className="
@@ -57,15 +58,17 @@ function GuestCard({ guest, onEdit, selected, onSelect }) {
         hover:-translate-y-0.5
       "
     >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={() => onSelect(guest._id)}
-        className="
+      {canManage && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onSelect(guest._id)}
+          className="
           mt-1 h-5 w-5 rounded border-gray-300 
           text-[#0c2bfc] focus:ring-[#0c2bfc]/20
         "
-      />
+        />
+      )}
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-3">
@@ -100,10 +103,11 @@ function GuestCard({ guest, onEdit, selected, onSelect }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onEdit(guest)}
-        className="
+      {canManage && (
+        <button
+          type="button"
+          onClick={() => onEdit(guest)}
+          className="
           h-10 px-4 rounded-xl 
           border border-gray-200 
           bg-white
@@ -114,9 +118,10 @@ function GuestCard({ guest, onEdit, selected, onSelect }) {
           active:translate-y-0
           text-gray-700 hover:text-[#0c2bfc]
         "
-      >
-        <FiEdit2 className="w-4 h-4" /> Edit
-      </button>
+        >
+          <FiEdit2 className="w-4 h-4" /> Edit
+        </button>
+      )}
     </div>
   );
 }
@@ -138,8 +143,7 @@ export default function Guests() {
 
   const [selectedGuests, setSelectedGuests] = useState([]);
 
-  const role = getUserRole();
-  const isAdmin = role === "admin" || role === "superadmin";
+  const canManageGst = canManageFeature(getUser(), "guests");
 
   useEffect(() => {
     fetchGuests().catch((err) =>
@@ -261,7 +265,7 @@ export default function Guests() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isAdmin && selectedGuests.length > 0 && (
+            {canManageGst && selectedGuests.length > 0 && (
               <button
                 onClick={handleDeleteSelected}
                 disabled={loading}
@@ -281,10 +285,10 @@ export default function Guests() {
               </button>
             )}
 
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={openAdd}
+              {canManageGst && (
+                <button
+                  type="button"
+                  onClick={openAdd}
                 className="
                   h-11 px-5 rounded-xl 
                   bg-[#0c2bfc] 
@@ -410,6 +414,7 @@ export default function Guests() {
               onEdit={openEdit}
               selected={selectedGuests.includes(g._id)}
               onSelect={toggleSelectGuest}
+              canManage={canManageGst}
             />
           ))}
           {paged.length === 0 && (
@@ -460,7 +465,7 @@ export default function Guests() {
           "
           >
             <div className="flex items-center gap-3">
-              {isAdmin && (
+              {canManageGst && (
                 <input
                   type="checkbox"
                   checked={
@@ -508,7 +513,7 @@ export default function Guests() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  {isAdmin && (
+                  {canManageGst && (
                     <th className="px-6 py-4 w-12">
                       <input
                         type="checkbox"
@@ -533,11 +538,9 @@ export default function Guests() {
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Account Type
                   </th>
-                  {isAdmin && (
-                    <th className="text-right font-semibold text-gray-700 px-6 py-4">
-                      Actions
-                    </th>
-                  )}
+                  <th className="text-right font-semibold text-gray-700 px-6 py-4">
+                    Actions
+                  </th>
                 </tr>
               </thead>
 
@@ -551,7 +554,7 @@ export default function Guests() {
                       transition-colors duration-150
                     "
                   >
-                    {isAdmin && (
+                    {canManageGst && (
                       <td className="px-6 py-4">
                         <input
                           type="checkbox"
@@ -592,8 +595,8 @@ export default function Guests() {
                       <AccountBadge hasAccount={g.hasAccount || false} />
                     </td>
 
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right">
+                      {canManageGst && (
                         <button
                           type="button"
                           onClick={() => openEdit(g)}
@@ -611,15 +614,15 @@ export default function Guests() {
                         >
                           <FiEdit2 className="w-4 h-4" /> Edit
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
                 ))}
 
                 {paged.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isAdmin ? 6 : 5}
+                      colSpan={canManageGst ? 6 : 5}
                       className="px-6 py-16 text-center"
                     >
                       <div className="text-gray-300 mb-3">

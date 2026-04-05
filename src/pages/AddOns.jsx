@@ -17,7 +17,8 @@ import toast, { Toaster } from "react-hot-toast";
 import Loader from "../components/layout/Loader.jsx";
 import AddOnModal from "../components/modals/AddOnModal.jsx";
 import { useAddOnStore } from "../stores/addOnStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import { isAdminRole } from "../utils/staffPermissions.js";
 import Pagination from "../components/ui/Pagination.jsx";
 
 const STATUS_STYLES = {
@@ -196,10 +197,9 @@ export default function AddOns() {
 
   const [selectedAddOns, setSelectedAddOns] = useState([]);
 
-  const role = getUserRole();
-
-  const canEditDelete = role === "admin" || role === "superadmin";
-  const canAdd = true;
+  const user = getUser();
+  const canEditDelete = isAdminRole(user?.role);
+  const canAdd = canEditDelete;
   const isViewOnly = !canEditDelete;
 
   useEffect(() => {
@@ -233,7 +233,13 @@ export default function AddOns() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const openAdd = () => setModal({ open: true, mode: "add", addOn: null });
+  const openAdd = () => {
+    if (!canAdd) {
+      toast.error("You don't have permission to add add-ons");
+      return;
+    }
+    setModal({ open: true, mode: "add", addOn: null });
+  };
   const openEdit = (addOn) => {
     if (!canEditDelete) {
       toast.error("You don't have permission to edit add-ons");
@@ -244,6 +250,14 @@ export default function AddOns() {
   const closeModal = () => setModal({ open: false, mode: "add", addOn: null });
 
   const saveAddOn = async (payload) => {
+    if (modal.mode === "add" && !canAdd) {
+      toast.error("You don't have permission to add add-ons");
+      return;
+    }
+    if (modal.mode === "edit" && !canEditDelete) {
+      toast.error("You don't have permission to edit add-ons");
+      return;
+    }
     const normalizedStatus = normalizeStatus(payload.status);
     try {
       if (modal.mode === "add") {
@@ -333,9 +347,7 @@ export default function AddOns() {
                   clipRule="evenodd"
                 />
               </svg>
-              <span>
-                You can add add-ons, but cannot edit or delete existing ones.
-              </span>
+              <span>You have view-only access to add-ons.</span>
             </div>
           )}
         </div>
@@ -361,10 +373,11 @@ export default function AddOns() {
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={openAdd}
-            className="
+          {canAdd && (
+            <button
+              type="button"
+              onClick={openAdd}
+              className="
               h-11 px-5 rounded-xl 
               bg-[#0c2bfc] 
               hover:bg-[#0a24d6]
@@ -373,10 +386,11 @@ export default function AddOns() {
               hover:shadow-lg hover:-translate-y-0.5
               active:translate-y-0
             "
-            title="Add Add-On"
-          >
-            <FiPlus className="w-4 h-4" /> Add Add-On
-          </button>
+              title="Add Add-On"
+            >
+              <FiPlus className="w-4 h-4" /> Add Add-On
+            </button>
+          )}
         </div>
       </div>
 
@@ -499,10 +513,11 @@ export default function AddOns() {
             <div className="text-sm text-gray-500 mt-1">
               Try adjusting your search or filters
             </div>
-            <button
-              type="button"
-              onClick={openAdd}
-              className="
+            {canAdd && (
+              <button
+                type="button"
+                onClick={openAdd}
+                className="
                 mt-4 h-10 px-4 rounded-xl 
                 bg-[#0c2bfc] 
                 hover:bg-[#0a24d6]
@@ -511,10 +526,11 @@ export default function AddOns() {
                 hover:shadow-md hover:-translate-y-0.5
                 active:translate-y-0
               "
-            >
-              <FiPlus className="w-4 h-4" />
-              Add Add-On
-            </button>
+              >
+                <FiPlus className="w-4 h-4" />
+                Add Add-On
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -728,12 +744,15 @@ export default function AddOns() {
                       No add-ons found
                     </div>
                     <div className="text-sm text-gray-500 mt-2">
-                      Try adjusting your search criteria or add a new add-on
+                      {canAdd
+                        ? "Try adjusting your search criteria or add a new add-on"
+                        : "Try adjusting your search criteria."}
                     </div>
-                    <button
-                      type="button"
-                      onClick={openAdd}
-                      className="
+                    {canAdd && (
+                      <button
+                        type="button"
+                        onClick={openAdd}
+                        className="
                         mt-4 h-10 px-4 rounded-xl 
                         bg-[#0c2bfc] 
                         hover:bg-[#0a24d6]
@@ -742,10 +761,11 @@ export default function AddOns() {
                         hover:shadow-md hover:-translate-y-0.5
                         active:translate-y-0
                       "
-                    >
-                      <FiPlus className="w-4 h-4" />
-                      Add Add-On
-                    </button>
+                      >
+                        <FiPlus className="w-4 h-4" />
+                        Add Add-On
+                      </button>
+                    )}
                   </td>
                 </tr>
               )}

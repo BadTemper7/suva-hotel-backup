@@ -26,6 +26,16 @@ export function getUser() {
   return JSON.parse(u);
 }
 
+export function getStoredUser() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function getUserRole() {
   const user = getUser();
   return user?.role ?? null;

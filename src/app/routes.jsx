@@ -1,6 +1,7 @@
 // routes.jsx
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./ProtectedRoute.jsx";
+import StaffRouteGuard from "./StaffRouteGuard.jsx";
 import AdminLayout from "../components/layout/AdminLayout.jsx";
 import Loader from "../components/layout/Loader.jsx";
 import { ReservationProvider } from "../context/ReservationContext.jsx";
@@ -83,6 +84,9 @@ export default [
         path: "/",
         element: <AdminLayout />,
         children: [
+          {
+            element: <StaffRouteGuard />,
+            children: [
           {
             index: true,
             path: "dashboard",
@@ -186,6 +190,8 @@ export default [
           {
             path: "settings",
             element: withLoader(<Settings />, "Loading settings..."),
+          },
+            ],
           },
         ],
       },

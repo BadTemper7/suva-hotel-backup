@@ -4,6 +4,14 @@ import { FiX, FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 import { useUserStore } from "../../stores/userStore.js";
 import { toast } from "react-hot-toast";
 import Loader from "../layout/Loader";
+import { DEFAULT_RECEPTIONIST_PERMISSIONS } from "../../utils/staffPermissions.js";
+
+function mergeReceptionistPermsFromUser(u) {
+  return {
+    ...DEFAULT_RECEPTIONIST_PERMISSIONS,
+    ...(u?.receptionistPermissions || {}),
+  };
+}
 
 const ROLES = ["admin", "receptionist", "superadmin"]; // Added superadmin
 const STATUS = ["active", "inactive"];
@@ -37,6 +45,9 @@ export default function UserModal({ open, mode, user, onClose }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [changePassword, setChangePassword] = useState(false); // For edit mode password change
+  const [recPerms, setRecPerms] = useState(() => ({
+    ...DEFAULT_RECEPTIONIST_PERMISSIONS,
+  }));
 
   // Validation errors state
   const [errors, setErrors] = useState({
@@ -71,6 +82,7 @@ export default function UserModal({ open, mode, user, onClose }) {
       setContactNumber(user.contactNumber || "");
       setRole(user.role || "receptionist");
       setStatus(user.status || "active");
+      setRecPerms(mergeReceptionistPermsFromUser(user));
       setPassword("");
       setConfirmPassword("");
       setChangePassword(false); // Reset password change flag
@@ -104,6 +116,7 @@ export default function UserModal({ open, mode, user, onClose }) {
       setContactNumber("");
       setRole("receptionist");
       setStatus("active");
+      setRecPerms({ ...DEFAULT_RECEPTIONIST_PERMISSIONS });
       setPassword("");
       setConfirmPassword("");
       setChangePassword(false);
@@ -441,6 +454,10 @@ export default function UserModal({ open, mode, user, onClose }) {
       status,
     };
 
+    if (role === "receptionist") {
+      payload.receptionistPermissions = { ...recPerms };
+    }
+
     // Only include password if it's being changed (add mode or edit with change password)
     if (mode === "add" || (mode === "edit" && changePassword)) {
       payload.password = password;
@@ -629,10 +646,23 @@ export default function UserModal({ open, mode, user, onClose }) {
                 {/* Role */}
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => {
+                    const r = e.target.value;
+                    setRole(r);
+                    if (r === "receptionist") {
+                      if (mode === "edit" && user?.role === "receptionist") {
+                        setRecPerms(mergeReceptionistPermsFromUser(user));
+                      } else {
+                        setRecPerms({ ...DEFAULT_RECEPTIONIST_PERMISSIONS });
+                      }
+                    }
+                  }}
                   className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-colors duration-200"
                 >
-                  {ROLES.map((r) => (
+                  {(currentUser?.role === "superadmin"
+                    ? ROLES
+                    : ROLES.filter((r) => r !== "superadmin")
+                  ).map((r) => (
                     <option key={r} value={r}>
                       {r.charAt(0).toUpperCase() + r.slice(1)}
                     </option>
@@ -652,6 +682,112 @@ export default function UserModal({ open, mode, user, onClose }) {
                   ))}
                 </select>
               </div>
+
+              {role === "receptionist" && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-4 space-y-4">
+                  <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    Receptionist access
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                      <input
+                        type="checkbox"
+                        checked
+                        disabled
+                        className="rounded border-gray-300"
+                      />
+                      Front desk
+                      <span className="text-xs font-normal text-gray-500">
+                        (always on)
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-4 pl-6 text-sm">
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="perm-frontDesk"
+                          checked={recPerms.frontDesk === "view"}
+                          onChange={() =>
+                            setRecPerms((p) => ({ ...p, frontDesk: "view" }))
+                          }
+                        />
+                        View only
+                      </label>
+                      <label className="inline-flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="perm-frontDesk"
+                          checked={recPerms.frontDesk === "manage"}
+                          onChange={() =>
+                            setRecPerms((p) => ({ ...p, frontDesk: "manage" }))
+                          }
+                        />
+                        View and manage
+                      </label>
+                    </div>
+                  </div>
+
+                  {[
+                    { key: "reservations", label: "Reservations" },
+                    { key: "rooms", label: "Rooms & cottages" },
+                    { key: "guests", label: "Guest management" },
+                    { key: "billing", label: "Billing records" },
+                  ].map(({ key, label }) => {
+                    const enabled = recPerms[key] !== "none";
+                    const level = enabled ? recPerms[key] : "view";
+                    return (
+                      <div key={key} className="space-y-1 border-t border-gray-200 pt-3">
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-800 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enabled}
+                            onChange={(e) => {
+                              const on = e.target.checked;
+                              setRecPerms((p) => ({
+                                ...p,
+                                [key]: on ? "manage" : "none",
+                              }));
+                            }}
+                            className="rounded border-gray-300"
+                          />
+                          {label}
+                        </label>
+                        <div className="flex flex-wrap gap-4 pl-6 text-sm text-gray-600">
+                          <label
+                            className={`inline-flex items-center gap-2 ${enabled ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
+                          >
+                            <input
+                              type="radio"
+                              name={`perm-${key}`}
+                              disabled={!enabled}
+                              checked={enabled && level === "view"}
+                              onChange={() =>
+                                setRecPerms((p) => ({ ...p, [key]: "view" }))
+                              }
+                            />
+                            View only
+                          </label>
+                          <label
+                            className={`inline-flex items-center gap-2 ${enabled ? "cursor-pointer" : "opacity-40 cursor-not-allowed"}`}
+                          >
+                            <input
+                              type="radio"
+                              name={`perm-${key}`}
+                              disabled={!enabled}
+                              checked={enabled && level === "manage"}
+                              onChange={() =>
+                                setRecPerms((p) => ({ ...p, [key]: "manage" }))
+                              }
+                            />
+                            View and manage
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Password change section - for edit mode */}
               {mode === "edit" && (

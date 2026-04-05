@@ -1,7 +1,18 @@
 // src/pages/Login.jsx
 import { useMemo, useState } from "react";
 import { Navigate, useLocation, useNavigate, Link } from "react-router-dom";
-import { setAuthed, setToken, isAuthed, setUser } from "../app/auth.js";
+import {
+  setAuthed,
+  setToken,
+  isAuthed,
+  setUser,
+  getUser,
+} from "../app/auth.js";
+import useUserStore from "../stores/userStore.js";
+import {
+  canAccessPath,
+  getDefaultLandingPath,
+} from "../utils/staffPermissions.js";
 import Loader from "../components/layout/Loader.jsx";
 import { FiEye, FiEyeOff, FiLock } from "react-icons/fi";
 import { LogoVariations } from "../components/layout/Logo.jsx";
@@ -14,7 +25,7 @@ export default function Login() {
   const location = useLocation();
   const from = useMemo(
     () => location.state?.from || "/dashboard",
-    [location.state],
+    [location.state?.from],
   );
 
   const [account, setAccount] = useState("");
@@ -23,7 +34,12 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  if (isAuthed()) return <Navigate to={from} replace />;
+  if (isAuthed()) {
+    const u = getUser();
+    const target =
+      u && canAccessPath(u, from) ? from : u ? getDefaultLandingPath(u) : "/dashboard";
+    return <Navigate to={target} replace />;
+  }
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -66,7 +82,14 @@ export default function Login() {
       setToken(data.token);
       setAuthed(true);
       setUser(data.user);
-      navigate(from, { replace: true });
+      useUserStore.setState({
+        currentUser: data.user,
+        isAuthenticated: true,
+        authInitialized: true,
+      });
+      const next =
+        canAccessPath(data.user, from) ? from : getDefaultLandingPath(data.user);
+      navigate(next, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

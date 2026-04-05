@@ -20,7 +20,11 @@ import toast, { Toaster } from "react-hot-toast";
 import Loader from "../components/layout/Loader.jsx";
 import ReservationStatusModal from "../components/modals/ReservationStatusModal.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import {
+  canManageFeature,
+  canViewRoomsOrFrontDesk,
+} from "../utils/staffPermissions.js";
 import { Helmet } from "react-helmet";
 import Pagination from "../components/ui/Pagination.jsx";
 
@@ -101,6 +105,7 @@ function ReservationCard({
   onDelete,
   selected,
   onSelect,
+  canManage,
 }) {
   const guestName =
     `${reservation?.guestId?.firstName || ""} ${
@@ -124,15 +129,17 @@ function ReservationCard({
       hover:-translate-y-0.5
     "
     >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={() => onSelect(reservation._id)}
-        className="
+      {canManage && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onSelect(reservation._id)}
+          className="
           mt-1 h-5 w-5 rounded border-gray-300 
           text-[#0c2bfc] focus:ring-[#0c2bfc]/20
         "
-      />
+        />
+      )}
 
       <div className="flex-1 min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
@@ -222,10 +229,11 @@ function ReservationCard({
       </div>
 
       <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => onEdit(reservation)}
-          className="
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => onEdit(reservation)}
+            className="
             h-10 px-4 rounded-xl 
             border border-gray-200 
             bg-white
@@ -236,9 +244,10 @@ function ReservationCard({
             active:translate-y-0
             text-gray-700 hover:text-[#0c2bfc]
           "
-        >
-          <FiEdit2 className="w-4 h-4" /> Edit
-        </button>
+          >
+            <FiEdit2 className="w-4 h-4" /> Edit
+          </button>
+        )}
 
         <button
           type="button"
@@ -258,10 +267,11 @@ function ReservationCard({
           <FiEye className="w-4 h-4" /> View
         </button>
 
-        <button
-          type="button"
-          onClick={() => onDelete(reservation)}
-          className="
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => onDelete(reservation)}
+            className="
             h-10 px-4 rounded-xl 
             border border-gray-200 
             bg-white
@@ -272,9 +282,10 @@ function ReservationCard({
             active:translate-y-0
             text-red-600 hover:text-red-700
           "
-        >
-          <FiTrash2 className="w-4 h-4" /> Delete
-        </button>
+          >
+            <FiTrash2 className="w-4 h-4" /> Delete
+          </button>
+        )}
       </div>
     </div>
   );
@@ -309,8 +320,9 @@ export default function Reservations() {
 
   const [selectedReservations, setSelectedReservations] = useState([]);
 
-  const role = getUserRole();
-  const isAdmin = role === "admin" || role === "superadmin";
+  const user = getUser();
+  const canManageRes = canManageFeature(user, "reservations");
+  const canSeeRoomsShortcut = canViewRoomsOrFrontDesk(user);
 
   useEffect(() => {
     fetchReservations().catch((err) =>
@@ -495,7 +507,7 @@ export default function Reservations() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isAdmin && selectedReservations.length > 0 && (
+            {canManageRes && selectedReservations.length > 0 && (
               <button
                 onClick={openBulkDeleteModal}
                 disabled={loading}
@@ -516,9 +528,10 @@ export default function Reservations() {
             )}
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={goToAvailableRoomsToday}
-                className="
+              {canSeeRoomsShortcut && (
+                <button
+                  onClick={goToAvailableRoomsToday}
+                  className="
                   h-11 px-5 rounded-xl 
                   border border-gray-200 
                   bg-white
@@ -529,27 +542,29 @@ export default function Reservations() {
                   active:translate-y-0
                   text-gray-700 hover:text-[#0c2bfc]
                 "
-                title="Go to Available Rooms Today"
-              >
-                <svg
-                  className="w-4 h-4"
-                  stroke="currentColor"
-                  fill="none"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  title="Go to Available Rooms Today"
                 >
-                  <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                  <line x1="7" y1="7" x2="7.01" y2="7"></line>
-                </svg>
-                Available Rooms
-              </button>
+                  <svg
+                    className="w-4 h-4"
+                    stroke="currentColor"
+                    fill="none"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                  </svg>
+                  Available Rooms
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={() => navigate("/reservation-process")}
-                className="
+              {canManageRes && (
+                <button
+                  type="button"
+                  onClick={() => navigate("/reservation-process")}
+                  className="
                   h-11 px-5 rounded-xl 
                   bg-[#0c2bfc] 
                   hover:bg-[#0a24d6]
@@ -558,9 +573,10 @@ export default function Reservations() {
                   hover:shadow-lg hover:-translate-y-0.5
                   active:translate-y-0
                 "
-              >
-                <FiPlus className="w-4 h-4" /> Create Reservation
-              </button>
+                >
+                  <FiPlus className="w-4 h-4" /> Create Reservation
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -714,6 +730,7 @@ export default function Reservations() {
               onDelete={openDeleteModal}
               selected={selectedReservations.includes(r._id)}
               onSelect={toggleSelectReservation}
+              canManage={canManageRes}
             />
           ))}
           {paged.length === 0 && (
@@ -766,7 +783,7 @@ export default function Reservations() {
           "
           >
             <div className="flex items-center gap-3">
-              {isAdmin && (
+              {canManageRes && (
                 <input
                   type="checkbox"
                   checked={
@@ -815,7 +832,7 @@ export default function Reservations() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  {isAdmin && (
+                  {canManageRes && (
                     <th className="px-6 py-4 w-12">
                       <input
                         type="checkbox"
@@ -849,11 +866,9 @@ export default function Reservations() {
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Assisted By
                   </th>
-                  {isAdmin && (
-                    <th className="text-right font-semibold text-gray-700 px-6 py-4">
-                      Actions
-                    </th>
-                  )}
+                  <th className="text-right font-semibold text-gray-700 px-6 py-4">
+                    Actions
+                  </th>
                 </tr>
               </thead>
 
@@ -880,7 +895,7 @@ export default function Reservations() {
                         transition-colors duration-150
                       "
                     >
-                      {isAdmin && (
+                      {canManageRes && (
                         <td className="px-6 py-4">
                           <input
                             type="checkbox"
@@ -951,9 +966,9 @@ export default function Reservations() {
                         <div className="text-gray-700">{assistedByName}</div>
                       </td>
 
-                      {isAdmin && (
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          {canManageRes && (
                             <button
                               type="button"
                               onClick={() => openEdit(r)}
@@ -971,13 +986,14 @@ export default function Reservations() {
                             >
                               <FiEdit2 className="w-4 h-4" /> Edit
                             </button>
+                          )}
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                navigate(`/reservations/${r._id}/rooms`)
-                              }
-                              className="
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigate(`/reservations/${r._id}/rooms`)
+                            }
+                            className="
                                 h-10 px-4 rounded-xl 
                                 border border-gray-200 
                                 bg-white
@@ -988,10 +1004,11 @@ export default function Reservations() {
                                 active:translate-y-0
                                 text-gray-700 hover:text-[#0c2bfc]
                               "
-                            >
-                              <FiEye className="w-4 h-4" /> View
-                            </button>
+                          >
+                            <FiEye className="w-4 h-4" /> View
+                          </button>
 
+                          {canManageRes && (
                             <button
                               type="button"
                               onClick={() => openDeleteModal(r)}
@@ -1009,9 +1026,9 @@ export default function Reservations() {
                             >
                               <FiTrash2 className="w-4 h-4" /> Delete
                             </button>
-                          </div>
-                        </td>
-                      )}
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1019,7 +1036,7 @@ export default function Reservations() {
                 {paged.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isAdmin ? 9 : 8}
+                      colSpan={canManageRes ? 9 : 8}
                       className="px-6 py-16 text-center"
                     >
                       <div className="text-gray-300 mb-3">

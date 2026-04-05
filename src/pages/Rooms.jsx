@@ -19,7 +19,8 @@ import CottageFormModal from "../components/modals/CottageFormModal.jsx";
 import ImagePreviewModal from "../components/modals/ImagePreviewModal.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import { useRoomStore } from "../stores/roomStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import { canManageRooms } from "../utils/staffPermissions.js";
 import toast, { Toaster } from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
@@ -91,7 +92,7 @@ function ImageCell({ images, roomNo, onPreview }) {
   );
 }
 
-function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
+function RoomCard({ room, onEdit, onPreview, selected, onSelect, canManage }) {
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -111,15 +112,17 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
       hover:-translate-y-0.5
     "
     >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={() => onSelect(room._id)}
-        className="
+      {canManage && (
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={() => onSelect(room._id)}
+          className="
           mt-1 h-5 w-5 rounded border-gray-300 
           text-[#0c2bfc] focus:ring-[#0c2bfc]/20
         "
-      />
+        />
+      )}
 
       <ImageCell
         images={room.images}
@@ -203,10 +206,11 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => onEdit(room)}
-        className="
+      {canManage && (
+        <button
+          type="button"
+          onClick={() => onEdit(room)}
+          className="
           h-10 px-4 rounded-xl 
           border border-gray-200 
           bg-white
@@ -217,9 +221,10 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect }) {
           active:translate-y-0
           text-gray-700 hover:text-[#0c2bfc]
         "
-      >
-        <FiEdit2 className="w-4 h-4" /> Edit
-      </button>
+        >
+          <FiEdit2 className="w-4 h-4" /> Edit
+        </button>
+      )}
     </div>
   );
 }
@@ -258,8 +263,7 @@ export default function Rooms() {
 
   const [selectedRooms, setSelectedRooms] = useState([]);
 
-  const role = getUserRole();
-  const isAdmin = role === "admin" || role === "superadmin";
+  const canManageRm = canManageRooms(getUser());
 
   useEffect(() => {
     fetchRooms({ category: listTab }).catch((err) =>
@@ -436,7 +440,7 @@ export default function Rooms() {
           </div>
 
           <div className="flex items-center gap-3">
-            {isAdmin && selectedRooms.length > 0 && (
+            {canManageRm && selectedRooms.length > 0 && (
               <button
                 onClick={handleDeleteSelected}
                 disabled={loading}
@@ -495,7 +499,7 @@ export default function Rooms() {
                 <FiGrid /> Add-ons
               </button>
 
-              {isAdmin && (
+              {canManageRm && (
                 <button
                   type="button"
                   onClick={openAdd}
@@ -595,6 +599,7 @@ export default function Rooms() {
               onPreview={openPreview}
               selected={selectedRooms.includes(r._id)}
               onSelect={toggleSelectRoom}
+              canManage={canManageRm}
             />
           ))}
           {paged.length === 0 && (
@@ -647,7 +652,7 @@ export default function Rooms() {
           "
           >
             <div className="flex items-center gap-3">
-              {isAdmin && (
+              {canManageRm && (
                 <input
                   type="checkbox"
                   checked={
@@ -695,7 +700,7 @@ export default function Rooms() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 sticky top-0 z-10">
                 <tr>
-                  {isAdmin && (
+                  {canManageRm && (
                     <th className="px-6 py-4 w-12">
                       <input
                         type="checkbox"
@@ -729,11 +734,9 @@ export default function Rooms() {
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Status
                   </th>
-                  {isAdmin && (
-                    <th className="text-right font-semibold text-gray-700 px-6 py-4">
-                      Actions
-                    </th>
-                  )}
+                  <th className="text-right font-semibold text-gray-700 px-6 py-4">
+                    Actions
+                  </th>
                 </tr>
               </thead>
 
@@ -747,7 +750,7 @@ export default function Rooms() {
                       transition-colors duration-150
                     "
                   >
-                    {isAdmin && (
+                    {canManageRm && (
                       <td className="px-6 py-4">
                         <input
                           type="checkbox"
@@ -812,8 +815,8 @@ export default function Rooms() {
                       </div>
                     </td>
 
-                    {isAdmin && (
-                      <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right">
+                      {canManageRm && (
                         <button
                           type="button"
                           onClick={() => openEdit(r)}
@@ -831,15 +834,15 @@ export default function Rooms() {
                         >
                           <FiEdit2 className="w-4 h-4" /> Edit
                         </button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
                 ))}
 
                 {paged.length === 0 && (
                   <tr>
                     <td
-                      colSpan={isAdmin ? 9 : 8}
+                      colSpan={canManageRm ? 9 : 8}
                       className="px-6 py-16 text-center"
                     >
                       <div className="text-gray-300 mb-3">

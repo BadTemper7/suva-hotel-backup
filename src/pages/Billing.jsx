@@ -6,7 +6,6 @@ import {
   FiTag,
   FiUpload,
   FiEye,
-  FiEdit,
   FiFilter,
   FiPrinter,
   FiRefreshCw,
@@ -16,7 +15,8 @@ import { useNavigate } from "react-router-dom";
 
 import Loader from "../components/layout/Loader.jsx";
 import { useBillingStore } from "../stores/billingStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import { canManageFeature, isAdminRole } from "../utils/staffPermissions.js";
 import ReceiptUploadModal from "../components/modals/ReceiptUploadModal.jsx";
 import ViewReceiptsModal from "../components/modals/ViewReceiptsModal.jsx";
 import ViewDiscountImagesModal from "../components/modals/ViewDiscountImagesModal.jsx";
@@ -80,10 +80,9 @@ function BillingCard({
   billing,
   onUpload,
   onView,
-  onEdit,
   onViewDiscounts,
-  onUploadDiscount,
   onRefund,
+  canManage,
 }) {
   const guest = billing?.reservationId?.guestId;
   const guestName = guest ? `${guest.firstName} ${guest.lastName}` : "—";
@@ -226,7 +225,7 @@ function BillingCard({
         </button>
 
         {/* Refund Button - Only show for eligible billings (not refunded, not paid, has payment) */}
-        {!isRefunded && !isPaid && billing.amountPaid > 0 && (
+        {!isRefunded && !isPaid && billing.amountPaid > 0 && canManage && (
           <button
             type="button"
             onClick={() => onRefund(billing)}
@@ -271,7 +270,7 @@ function BillingCard({
           >
             <FiRefreshCw className="w-4 h-4" /> Refunded
           </span>
-        ) : (
+        ) : canManage ? (
           <button
             type="button"
             onClick={() => onUpload(billing)}
@@ -290,6 +289,10 @@ function BillingCard({
             <FiUpload className="w-4 h-4" />
             Upload Receipt
           </button>
+        ) : (
+          <span className="h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 text-xs text-gray-500 inline-flex items-center justify-center">
+            View only
+          </span>
         )}
       </div>
     </div>
@@ -349,8 +352,10 @@ export default function Billing() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const role = getUserRole();
-  const isAdmin = role === "admin" || role === "superadmin";
+  const user = getUser();
+  const canManageBill = canManageFeature(user, "billing");
+  const showDiscountTypesShortcut = isAdminRole(user?.role);
+  const showPaymentCatalogShortcuts = isAdminRole(user?.role);
 
   useEffect(() => {
     fetchBillings().catch((err) =>
@@ -484,10 +489,12 @@ export default function Billing() {
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate("/payment-options")}
-              className="
+            {showPaymentCatalogShortcuts && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate("/payment-options")}
+                  className="
                 h-11 px-5 rounded-xl 
                 border border-gray-200 
                 bg-white
@@ -498,16 +505,16 @@ export default function Billing() {
                 active:translate-y-0
                 text-gray-700 hover:text-[#0c2bfc]
               "
-              title="Go to Payment Options"
-            >
-              <FiCreditCard />
-              Payment Options
-            </button>
+                  title="Go to Payment Options"
+                >
+                  <FiCreditCard />
+                  Payment Options
+                </button>
 
-            <button
-              type="button"
-              onClick={() => navigate("/payment-types")}
-              className="
+                <button
+                  type="button"
+                  onClick={() => navigate("/payment-types")}
+                  className="
                 h-11 px-5 rounded-xl 
                 border border-gray-200 
                 bg-white
@@ -518,13 +525,15 @@ export default function Billing() {
                 active:translate-y-0
                 text-gray-700 hover:text-[#0c2bfc]
               "
-              title="Go to Payment Types"
-            >
-              <FiList />
-              Payment Types
-            </button>
+                  title="Go to Payment Types"
+                >
+                  <FiList />
+                  Payment Types
+                </button>
+              </>
+            )}
 
-            {isAdmin && (
+            {showDiscountTypesShortcut && (
               <button
                 type="button"
                 onClick={() => navigate("/discount-types")}
@@ -622,10 +631,9 @@ export default function Billing() {
             billing={b}
             onUpload={openUploadModal}
             onView={openViewReceiptsModal}
-            onEdit={openEditModal}
             onViewDiscounts={openViewDiscountImagesModal}
-            onUploadDiscount={openUploadDiscountModal}
             onRefund={openRefundModal}
+            canManage={canManageBill}
           />
         ))}
         {paged.length === 0 && (
@@ -897,7 +905,7 @@ export default function Billing() {
                         </button>
 
                         {/* Refund Button - Only for eligible billings */}
-                        {b.isRefundable && (
+                        {b.isRefundable && canManageBill && (
                           <button
                             type="button"
                             onClick={() => openRefundModal(b)}
@@ -944,7 +952,7 @@ export default function Billing() {
                           >
                             <FiRefreshCw className="w-4 h-4" />
                           </span>
-                        ) : (
+                        ) : canManageBill ? (
                           <button
                             type="button"
                             onClick={() => openUploadModal(b)}
@@ -963,6 +971,13 @@ export default function Billing() {
                           >
                             <FiUpload className="w-4 h-4" />
                           </button>
+                        ) : (
+                          <span
+                            className="h-10 w-10 rounded-xl border border-gray-100 bg-gray-50 grid place-items-center text-gray-400 text-xs"
+                            title="View only"
+                          >
+                            —
+                          </span>
                         )}
                       </div>
                     </td>

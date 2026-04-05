@@ -13,7 +13,8 @@ import toast, { Toaster } from "react-hot-toast";
 import Loader from "../components/layout/Loader.jsx";
 import AmenityModal from "../components/modals/AmenityModal.jsx";
 import { useAmenityStore } from "../stores/amenityStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser } from "../app/auth.js";
+import { canManageRooms, isAdminRole } from "../utils/staffPermissions.js";
 import Pagination from "../components/ui/Pagination.jsx";
 
 const STATUS_STYLES = {
@@ -156,11 +157,9 @@ export default function Amenities() {
 
   const [selectedAmenities, setSelectedAmenities] = useState([]);
 
-  const role = getUserRole();
-
-  // Permissions: Admin and superadmin can edit/delete, everyone can add
-  const canEditDelete = role === "admin" || role === "superadmin";
-  const canAdd = true; // Everyone can add amenities
+  const user = getUser();
+  const canEditDelete = isAdminRole(user?.role) || canManageRooms(user);
+  const canAdd = canEditDelete;
   const isViewOnly = !canEditDelete;
 
   useEffect(() => {
