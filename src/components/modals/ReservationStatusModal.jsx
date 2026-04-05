@@ -349,14 +349,28 @@ export default function ReservationStatusModal({
                     onChange={(e) => setStatus(e.target.value)}
                     className="mt-1 w-full h-10 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200"
                   >
+                    {normalizeReservationStatus(reservation?.status) ===
+                      "checked_in" && (
+                      <option value="checked_in" disabled>
+                        Checked In (use Front desk to change)
+                      </option>
+                    )}
+                    {normalizeReservationStatus(reservation?.status) ===
+                      "checked_out" && (
+                      <option value="checked_out" disabled>
+                        Checked Out (use Front desk to change)
+                      </option>
+                    )}
                     <option value="pending">Pending</option>
                     <option value="confirmed">Confirmed</option>
-                    <option value="checked_in">Checked In</option>
-                    <option value="checked_out">Checked Out</option>
                     <option value="cancelled">Cancelled</option>
                     <option value="expired">Expired</option>
                     <option value="no_show">No Show</option>
                   </select>
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    Check-in and check-out are set from the Front desk page, not
+                    here.
+                  </p>
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-1">

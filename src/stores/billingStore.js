@@ -83,6 +83,14 @@ export const useBillingStore = create((set, get) => ({
       throw err;
     }
   },
+
+  fetchBillingByReservationId: async (reservationId) => {
+    if (!reservationId) return null;
+    const res = await fetch(`${API}/billings/${reservationId}`);
+    if (res.status === 404) return null;
+    const data = await safeJson(res);
+    return data.billing ?? null;
+  },
   // src/stores/billingStore.js - Add this inside the useBillingStore create function
 
   /**
