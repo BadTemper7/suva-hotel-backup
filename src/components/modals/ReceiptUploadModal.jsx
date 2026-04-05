@@ -143,18 +143,10 @@ export default function ReceiptUploadModal({
 
     const requiresReceipt = selectedPaymentType?.isReceipt || false;
 
-    // Receipt validation based on user role
+    // Receipt validation
     if (requiresReceipt) {
-      if (isAdmin || isReceptionist) {
-        // Admin or Receptionist: At least one of reference number OR image
-        if (!referenceNumber.trim() && !receiptImage) {
-          newErrors.receiptImage = `For ${selectedPaymentType?.name}, either reference number OR receipt image is required. Please provide at least one.`;
-        }
-      } else {
-        // Regular user: Image required
-        if (!receiptImage) {
-          newErrors.receiptImage = `Receipt image is required for ${selectedPaymentType?.name}. Please upload a receipt.`;
-        }
+      if (!receiptImage) {
+        newErrors.receiptImage = `Receipt image is required for ${selectedPaymentType?.name}. Please upload a receipt.`;
       }
     }
 
@@ -285,13 +277,13 @@ export default function ReceiptUploadModal({
             )}
           </div>
 
-          {/* Reference Number Field - Show for admin and receptionist */}
+          {/* Reference Number Field - optional metadata */}
           {(isAdmin || isReceptionist) && requiresReceipt && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Reference Number
                 <span className="text-xs text-gray-500 ml-1">
-                  (Optional if image uploaded)
+                  (Optional)
                 </span>
               </label>
               <input
@@ -300,28 +292,10 @@ export default function ReceiptUploadModal({
                 onChange={(e) => setReferenceNumber(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-colors duration-200"
                 placeholder="e.g., GCash Ref #, Bank Transfer Ref #"
-                disabled={receiptImage !== null}
               />
-              {receiptImage && (
-                <p className="text-xs text-amber-600 mt-1">
-                  Reference number disabled because image is uploaded. Clear
-                  image to use reference number.
-                </p>
-              )}
             </div>
           )}
 
-          {/* OR Divider for admin/receptionist */}
-          {(isAdmin || isReceptionist) && requiresReceipt && (
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-2 bg-white text-gray-500">OR</span>
-              </div>
-            </div>
-          )}
 
           {/* Amount Paid */}
           <div>
@@ -401,15 +375,9 @@ export default function ReceiptUploadModal({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Receipt Image
-                {!(isAdmin || isReceptionist) && (
-                  <span className="text-red-500 ml-1">*</span>
-                )}
+                <span className="text-red-500 ml-1">*</span>
                 <span className="text-xs text-gray-500 ml-1">
-                  (
-                  {isAdmin || isReceptionist
-                    ? "Optional if reference number provided"
-                    : "Required"}{" "}
-                  for {selectedPaymentType?.name})
+                  (Required for {selectedPaymentType?.name})
                 </span>
               </label>
               <div className="mt-1">
@@ -510,23 +478,11 @@ export default function ReceiptUploadModal({
               type="submit"
               disabled={
                 loading ||
-                (requiresReceipt &&
-                  !(isAdmin || isReceptionist) &&
-                  !receiptImage) ||
-                (requiresReceipt &&
-                  (isAdmin || isReceptionist) &&
-                  !referenceNumber.trim() &&
-                  !receiptImage)
+                (requiresReceipt && !receiptImage)
               }
               className={`h-10 px-4 rounded-xl text-white text-sm font-medium transition-all duration-200 ${
                 loading ||
-                (requiresReceipt &&
-                  !(isAdmin || isReceptionist) &&
-                  !receiptImage) ||
-                (requiresReceipt &&
-                  (isAdmin || isReceptionist) &&
-                  !referenceNumber.trim() &&
-                  !receiptImage)
+                (requiresReceipt && !receiptImage)
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-[#0c2bfc] hover:bg-[#0a24d6] shadow-sm hover:shadow"
               }`}

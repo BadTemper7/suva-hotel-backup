@@ -18,6 +18,8 @@ const BILLING_STYLES = {
   unpaid: "bg-gray-100 text-gray-700",
   partial: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
   paid: "bg-[#00af00]/10 text-[#00af00]",
+  refunded: "bg-purple-100 text-purple-700",
+  voided: "bg-gray-100 text-gray-700",
 };
 
 const RECEIPT_STATUS_STYLES = {
@@ -40,6 +42,8 @@ function normalizeBillingStatus(v) {
     .trim();
   if (s === "paid") return "paid";
   if (s === "partial" || s === "partially paid") return "partial";
+  if (s === "refunded") return "refunded";
+  if (s === "voided" || s === "cancelled") return "voided";
   return "unpaid";
 }
 
@@ -65,6 +69,10 @@ function StatusPill({ value, variant = "reservation" }) {
         ? "Paid"
         : v === "partial"
           ? "Partially Paid"
+          : v === "refunded"
+            ? "Refunded"
+            : v === "voided"
+              ? "Voided"
           : "Unpaid"
       : v === "checked_in"
         ? "Checked In"
@@ -129,6 +137,7 @@ export default function ReservationStatusModal({
   onSave,
 }) {
   const [status, setStatus] = useState("pending");
+  const [cancelReason, setCancelReason] = useState("");
 
   const [billingLoading, setBillingLoading] = useState(false);
   const [billing, setBilling] = useState(null);
@@ -145,7 +154,10 @@ export default function ReservationStatusModal({
     import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
 
   useEffect(() => {
-    if (reservation) setStatus(reservation.status || "pending");
+    if (reservation) {
+      setStatus(reservation.status || "pending");
+      setCancelReason(String(reservation.cancelReason || ""));
+    }
   }, [reservation]);
 
   const reservationId = reservation?._id;
@@ -187,6 +199,11 @@ export default function ReservationStatusModal({
     () => normalizeBillingStatus(billing?.status),
     [billing?.status],
   );
+  const hasRefundStatusMismatch = useMemo(() => {
+    if (!billing) return false;
+    const refundAmount = Number(billing?.refundAmount || 0);
+    return refundAmount > 0 && billingStatus !== "refunded";
+  }, [billing, billingStatus]);
 
   // ✅ Due Date rule: show ONLY when billing is UNPAID
   // Default: 1 day after reservation creation (or billing creation)
@@ -215,7 +232,11 @@ export default function ReservationStatusModal({
 
   const submit = (e) => {
     e.preventDefault();
-    onSave?.(status);
+    if (status === "cancelled" && !cancelReason.trim()) {
+      toast.error("Cancel reason is required.");
+      return;
+    }
+    onSave?.(status, cancelReason.trim());
   };
 
   // Flatten ALL receipt images for preview (latest receipts first)
@@ -234,6 +255,8 @@ export default function ReservationStatusModal({
   const receiptList = useMemo(() => {
     return Array.isArray(billing?.receipts) ? billing.receipts : [];
   }, [billing?.receipts]);
+  const isComplimentary =
+    Boolean(billing?.isComplimentary) || Number(billing?.totalAmount || 0) <= 0;
 
   const paymentTypeNameById = useMemo(() => {
     return new Map(
@@ -359,6 +382,21 @@ export default function ReservationStatusModal({
                   </select>
                 </div>
 
+                {status === "cancelled" && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      Cancel Reason <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={cancelReason}
+                      onChange={(e) => setCancelReason(e.target.value)}
+                      rows={3}
+                      placeholder="Please provide the reason for cancellation"
+                      className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200"
+                    />
+                  </div>
+                )}
+
                 <div className="flex items-center justify-end gap-2 pt-1">
                   <button
                     type="button"
@@ -380,14 +418,26 @@ export default function ReservationStatusModal({
             {/* Right: Billing */}
             <div className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm font-semibold text-gray-900">
-                  Billing
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Billing
+                  </div>
+                  {billing?.billingNumber ? (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      #{billing.billingNumber}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   {billing ? (
                     <StatusPill value={billing?.status} variant="billing" />
                   ) : (
                     <span className="text-xs text-gray-500">—</span>
+                  )}
+                  {billing && isComplimentary && (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-purple-100 text-purple-700">
+                      Free
+                    </span>
                   )}
                 </div>
               </div>
@@ -402,6 +452,9 @@ export default function ReservationStatusModal({
                 </div>
               ) : (
                 <>
+                  <div className="mt-3 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                    Non-VAT: All billing amounts are VAT-exempt.
+                  </div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
                       <div className="text-xs text-gray-500">Total Amount</div>
@@ -461,6 +514,18 @@ export default function ReservationStatusModal({
                   </div>
 
                   <div className="mt-3 text-sm text-gray-700 space-y-1">
+                    {hasRefundStatusMismatch && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Refund amount exists, but billing status is not marked as
+                        Refunded. Please review billing status.
+                      </div>
+                    )}
+                    {isComplimentary && (
+                      <div className="rounded-lg border border-purple-200 bg-purple-50 px-3 py-2 text-xs text-purple-800">
+                        Complimentary booking: no payment required (Total Amount is
+                        zero).
+                      </div>
+                    )}
                     {/* Due Date appears ONLY when unpaid */}
                     {billingStatus === "unpaid" && (
                       <div>

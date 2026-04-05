@@ -123,13 +123,16 @@ export const useReservationStore = create((set, get) => ({
   },
 
   // Update reservation status
-  updateReservationStatus: async (id, status) => {
+  updateReservationStatus: async (id, status, cancelReason = "") => {
     set({ loading: true, error: null });
     try {
       const res = await fetch(`${API}/reservations/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({
+          status,
+          ...(cancelReason ? { cancelReason: String(cancelReason).trim() } : {}),
+        }),
       });
 
       const data = await safeJson(res);

@@ -91,6 +91,7 @@ function BillingCard({
   const isRefunded = billing.status === "refunded";
   const recent = isRecentBilling(billing.createdAt);
   const hasDiscount = billing.discountAmount > 0;
+  const isComplimentary = Boolean(billing.isComplimentary);
 
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
@@ -150,6 +151,11 @@ function BillingCard({
             <div className="text-sm font-semibold text-gray-900">
               {money(billing.amountPaid)}
             </div>
+            {isComplimentary && (
+              <div className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
+                Free
+              </div>
+            )}
           </div>
           <div>
             <div className="text-xs text-gray-500">Due Now</div>
@@ -169,7 +175,6 @@ function BillingCard({
             </div>
           </div>
         )}
-
         <div className="flex items-center justify-between">
           <StatusPill value={billing.status} />
           <div className="text-xs text-gray-500">
@@ -472,6 +477,9 @@ export default function Billing() {
           <div className="text-sm text-gray-600">
             Manage billing records, upload receipts, and track payments
           </div>
+          <div className="mt-2 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+            Non-VAT: All billing amounts are VAT-exempt.
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -751,6 +759,7 @@ export default function Billing() {
                 const isPaid = b.status === "paid";
                 const recent = isRecentBilling(b.createdAt);
                 const hasDiscount = b.discountAmount > 0;
+                const isComplimentary = Boolean(b.isComplimentary);
 
                 return (
                   <tr
@@ -801,6 +810,11 @@ export default function Billing() {
                       <div className="text-gray-700 font-medium">
                         {money(b.amountPaid)}
                       </div>
+                      {isComplimentary && (
+                        <div className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
+                          Free
+                        </div>
+                      )}
                     </td>
 
                     <td className="px-6 py-4">
