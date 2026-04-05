@@ -431,6 +431,8 @@ function ViewReceiptsModal({ billing, open, onClose }) {
   const totalSelectedAmount = receipts
     .filter((r) => selectedReceipts.includes(r._id))
     .reduce((sum, r) => sum + (r.amountPaid || 0), 0);
+  const isComplimentary =
+    Boolean(billing?.isComplimentary) || Number(billing?.totalAmount || 0) <= 0;
 
   if (!billing || !open) return null;
 
@@ -506,6 +508,19 @@ function ViewReceiptsModal({ billing, open, onClose }) {
                         billing.status?.slice(1)}
                     </span>
                   </div>
+                  {isComplimentary && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-600">
+                        Note:
+                      </span>
+                      <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+                      Free
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                  Non-VAT: All billing amounts are VAT-exempt.
                 </div>
               </div>
               <button

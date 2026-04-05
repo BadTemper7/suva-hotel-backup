@@ -57,6 +57,14 @@ function normalizeStatus(v) {
   return "pending";
 }
 
+function isComplimentaryReservation(reservation) {
+  if (!reservation) return false;
+  if (reservation?.billing?.isComplimentary) return true;
+
+  const note = String(reservation?.notes || "").toLowerCase();
+  return note.includes("complimentary");
+}
+
 function StatusPill({ value }) {
   const v = normalizeStatus(value);
   const label =
@@ -93,6 +101,7 @@ function ReservationCard({
   const assistedByName = reservation?.userId
     ? `${reservation?.userId?.firstName || ""} ${reservation?.userId?.lastName || ""}`
     : "—";
+  const isComplimentary = isComplimentaryReservation(reservation);
 
   const isToday = (date) => {
     const today = new Date();
@@ -133,6 +142,11 @@ function ReservationCard({
             <div className="text-sm font-semibold text-gray-900 truncate">
               #{reservation.reservationNumber}
             </div>
+            {isComplimentary && (
+              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
+                Free
+              </span>
+            )}
             {isCheckInToday && (
               <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
                 <FiSun className="w-3 h-3" /> Check-in Today
@@ -159,6 +173,17 @@ function ReservationCard({
             <span>{contact}</span>
           </div>
         </div>
+
+        {isComplimentary && (
+          <div className="mb-3 rounded-lg border border-purple-200 bg-purple-50 px-3 py-2">
+            <div className="text-xs font-semibold text-purple-700">
+              Free reservation
+            </div>
+            <div className="mt-1 text-xs text-purple-800">
+              Free reservation (no payment required)
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div>
@@ -272,6 +297,7 @@ export default function Reservations() {
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [complimentaryFilter, setComplimentaryFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all"); // all, checkin_today, checkout_today, upcoming, past
   const [modal, setModal] = useState({ open: false, reservation: null });
   const [deleteModal, setDeleteModal] = useState({
@@ -327,6 +353,12 @@ export default function Reservations() {
       // Status filter
       const st = normalizeStatus(r.status);
       if (statusFilter !== "all" && st !== statusFilter) return false;
+      if (
+        complimentaryFilter === "complimentary" &&
+        !isComplimentaryReservation(r)
+      ) {
+        return false;
+      }
 
       // Date filter
       if (dateFilter !== "all") {
@@ -354,15 +386,17 @@ export default function Reservations() {
       }`.toLowerCase();
       const contact = String(r?.guestId?.contactNumber || "").toLowerCase();
       const resNum = String(r?.reservationNumber || "").toLowerCase();
+      const notes = String(r?.notes || "").toLowerCase();
 
       return (
         guestName.includes(s) ||
         contact.includes(s) ||
         resNum.includes(s) ||
-        st.includes(s)
+        st.includes(s) ||
+        notes.includes(s)
       );
     });
-  }, [reservations, q, statusFilter, dateFilter]);
+  }, [reservations, q, statusFilter, complimentaryFilter, dateFilter]);
 
   const total = filtered.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -723,10 +757,38 @@ export default function Reservations() {
                 <option value="no_show">No Show</option>
               </select>
 
+              <select
+                value={complimentaryFilter}
+                onChange={(e) => {
+                  setComplimentaryFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="
+                  h-11 rounded-xl border border-gray-200
+                  bg-white px-4 text-sm outline-none
+                  focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                  text-gray-700 font-medium
+                  transition-all duration-200
+                "
+                title="Filter complimentary reservations"
+              >
+                <option value="all">All</option>
+                <option value="complimentary">Free</option>
+              </select>
+
               {/* Clear filter button */}
-              {dateFilter !== "all" && (
+              {(dateFilter !== "all" ||
+                statusFilter !== "all" ||
+                complimentaryFilter !== "all" ||
+                q.trim()) && (
                 <button
-                  onClick={() => setDateFilter("all")}
+                  onClick={() => {
+                    setDateFilter("all");
+                    setStatusFilter("all");
+                    setComplimentaryFilter("all");
+                    setQ("");
+                    setPage(1);
+                  }}
                   className="
                     h-11 px-4 rounded-xl 
                     border border-gray-200 
@@ -921,6 +983,7 @@ export default function Reservations() {
                     : "—";
                   const isCheckInToday = isToday(r.checkIn);
                   const isCheckOutToday = isToday(r.checkOut);
+                  const isComplimentary = isComplimentaryReservation(r);
 
                   return (
                     <tr
@@ -950,6 +1013,11 @@ export default function Reservations() {
                       <td className="px-6 py-4">
                         <div className="font-semibold text-gray-900">
                           #{r.reservationNumber}
+                          {isComplimentary && (
+                            <span className="ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
+                              Free
+                            </span>
+                          )}
                           {isCheckInToday && (
                             <span className="ml-2 inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
                               <FiSun className="w-3 h-3" />
@@ -977,6 +1045,11 @@ export default function Reservations() {
                         <div className="text-gray-700 font-medium">
                           {r.paymentOption?.name || "—"}
                         </div>
+                        {isComplimentary && (
+                          <div className="mt-1 text-xs text-purple-700">
+                            Free reservation (no payment required)
+                          </div>
+                        )}
                       </td>
 
                       <td className="px-6 py-4">

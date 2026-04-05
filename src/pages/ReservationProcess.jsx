@@ -235,6 +235,7 @@ export default function ReservationProcess() {
 
   // Category filter for rooms/cottages
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [fitCapacityOnly, setFitCapacityOnly] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
 
   // State for guest email search
@@ -245,6 +246,8 @@ export default function ReservationProcess() {
   const [guestExists, setGuestExists] = useState(false);
   const [originalGuestData, setOriginalGuestData] = useState(null);
   const [isCreatingNewGuest, setIsCreatingNewGuest] = useState(false);
+  const [isComplimentaryReservation, setIsComplimentaryReservation] =
+    useState(false);
   const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
   const [selectedImageTitle, setSelectedImageTitle] = useState("");
@@ -334,11 +337,26 @@ export default function ReservationProcess() {
     }
   }, [reservationFormData.checkIn]);
 
-  // Filter available items by category
+  // Filter available items by category/capacity
   const filteredAvailableItems = useMemo(() => {
-    if (categoryFilter === "all") return availableRooms;
-    return availableRooms.filter((item) => item.category === categoryFilter);
-  }, [availableRooms, categoryFilter]);
+    const requiredGuests =
+      Number(reservationFormData.adults || 0) +
+      Number(reservationFormData.children || 0);
+
+    return availableRooms.filter((item) => {
+      const matchesCategory =
+        categoryFilter === "all" ? true : item.category === categoryFilter;
+      if (!matchesCategory) return false;
+      if (!fitCapacityOnly) return true;
+      return Number(item?.capacity || 0) >= requiredGuests;
+    });
+  }, [
+    availableRooms,
+    categoryFilter,
+    fitCapacityOnly,
+    reservationFormData.adults,
+    reservationFormData.children,
+  ]);
 
   // Calculate counts
   const roomCount = availableRooms.filter(
@@ -674,12 +692,50 @@ export default function ReservationProcess() {
   }, [step, finalTotal, payment.paymentOption, paymentOptions]);
 
   const progressPct = useMemo(() => Math.round((step / 4) * 100), [step]);
-  const totalCapacity = useMemo(() => {
-    return roomReservations.reduce((sum, roomRes) => {
-      const room = availableRooms.find((r) => r._id === roomRes.roomId);
-      return sum + (room?.capacity || 0);
-    }, 0);
-  }, [roomReservations, availableRooms]);
+  const { roomCapacity, cottageCapacity, totalCapacity } = useMemo(() => {
+    return roomReservations.reduce(
+      (acc, roomRes) => {
+        const capacity = Number(roomRes?.capacity || 0);
+        if (roomRes?.category === "cottage") {
+          acc.cottageCapacity += capacity;
+        } else {
+          acc.roomCapacity += capacity;
+        }
+        acc.totalCapacity += capacity;
+        return acc;
+      },
+      { roomCapacity: 0, cottageCapacity: 0, totalCapacity: 0 },
+    );
+  }, [roomReservations]);
+  const requiredCapacity =
+    Number(reservationFormData.adults || 0) +
+    Number(reservationFormData.children || 0);
+  const hasRoomsSelected = roomReservations.some(
+    (roomRes) => roomRes?.category !== "cottage",
+  );
+  const hasCottagesSelected = roomReservations.some(
+    (roomRes) => roomRes?.category === "cottage",
+  );
+  const roomsSatisfyCapacity = roomCapacity >= requiredCapacity;
+  const cottagesSatisfyCapacity = cottageCapacity >= requiredCapacity;
+  const capacityMet =
+    roomReservations.length > 0 &&
+    (hasRoomsSelected ? roomsSatisfyCapacity : true) &&
+    (hasCottagesSelected ? cottagesSatisfyCapacity : true);
+  const capacityMetBy =
+    roomsSatisfyCapacity && cottagesSatisfyCapacity
+      ? "rooms and cottages"
+      : roomsSatisfyCapacity
+        ? "rooms"
+        : cottagesSatisfyCapacity
+          ? "cottages"
+          : "";
+  const remainingRoomCapacityNeeded = hasRoomsSelected
+    ? Math.max(requiredCapacity - roomCapacity, 0)
+    : 0;
+  const remainingCottageCapacityNeeded = hasCottagesSelected
+    ? Math.max(requiredCapacity - cottageCapacity, 0)
+    : 0;
 
   const checkOutMin = useMemo(() => {
     if (!reservationFormData.checkIn)
@@ -692,6 +748,20 @@ export default function ReservationProcess() {
     (pt) => pt._id === payment.paymentType,
   );
   const requiresReceipt = selectedPaymentType?.isReceipt;
+  const complimentaryPaymentOption = useMemo(
+    () =>
+      paymentOptions.find((po) => po.isActive && po.paymentType === "full") ||
+      paymentOptions.find((po) => po.isActive) ||
+      null,
+    [paymentOptions],
+  );
+  const complimentaryPaymentType = useMemo(
+    () =>
+      paymentTypes.find((pt) => pt.isActive && !pt.isReceipt) ||
+      paymentTypes.find((pt) => pt.isActive) ||
+      null,
+    [paymentTypes],
+  );
 
   // Validation
   const setFieldError = (key, message) =>
@@ -746,8 +816,20 @@ export default function ReservationProcess() {
       errors.rooms = "Select at least one room or cottage.";
     }
 
-    if (reservationFormData.adults > totalCapacity) {
-      errors.capacity = `Capacity (${totalCapacity}) is not enough for adults (${reservationFormData.adults}).`;
+    if (roomReservations.length > 0 && !capacityMet) {
+      const requirements = [];
+      if (hasRoomsSelected && !roomsSatisfyCapacity) {
+        requirements.push(
+          `add ${remainingRoomCapacityNeeded} more room capacity`,
+        );
+      }
+      if (hasCottagesSelected && !cottagesSatisfyCapacity) {
+        requirements.push(
+          `add ${remainingCottageCapacityNeeded} more cottage capacity`,
+        );
+      }
+
+      errors.capacity = `Capacity requirement not met for ${requiredCapacity} guests. Please ${requirements.join(" and ")}.`;
     }
 
     setErrors(errors);
@@ -821,9 +903,8 @@ export default function ReservationProcess() {
     }
 
     if (requiresReceipt) {
-      if (!referenceNumber && !selectedReceiptImage) {
-        errors.receipt =
-          "Either reference number OR receipt image is required.";
+      if (!selectedReceiptImage) {
+        errors.receipt = "Receipt image is required for this payment type.";
       }
     }
 
@@ -867,6 +948,10 @@ export default function ReservationProcess() {
 
   const handleStep3Next = () => {
     if (!validateStep3()) return;
+    if (isComplimentaryReservation) {
+      submitComplimentaryReservation();
+      return;
+    }
     goNext();
   };
 
@@ -951,9 +1036,6 @@ export default function ReservationProcess() {
     const preview = URL.createObjectURL(file);
     setSelectedReceiptImage(file);
     setReceiptImagePreview(preview);
-    if (isAdmin && referenceNumber) {
-      setReferenceNumber("");
-    }
   };
 
   const removeDiscountImage = () => {
@@ -1003,6 +1085,7 @@ export default function ReservationProcess() {
     setGuestExists(false);
     setIsCreatingNewGuest(false);
     setOriginalGuestData(null);
+    setIsComplimentaryReservation(false);
     removeDiscountImage();
     removeReceiptImage();
     setReferenceNumber("");
@@ -1012,6 +1095,64 @@ export default function ReservationProcess() {
   };
 
   // Submit reservation
+  const submitComplimentaryReservation = async () => {
+    if (!complimentaryPaymentOption || !complimentaryPaymentType) {
+      toast.error(
+        "Please configure at least one active payment option and payment type for complimentary reservations.",
+      );
+      return;
+    }
+
+    try {
+      const payload = {
+        guest: {
+          firstName: guest.firstName.trim(),
+          lastName: guest.lastName.trim(),
+          contactNumber: guest.contactNumber.trim(),
+          email: guest.email?.trim() || "",
+        },
+        reservationData: {
+          checkIn: reservationFormData.checkIn,
+          checkOut: reservationFormData.checkOut,
+          adults: reservationFormData.adults,
+          children: reservationFormData.children,
+          notes: [
+            reservationFormData.notes || "",
+            "Complimentary reservation (no payment required).",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          paymentOption: complimentaryPaymentOption._id,
+          discountId: null,
+        },
+        rooms: roomReservations.map((roomRes) => ({
+          roomId: roomRes.roomId,
+          addOns: roomRes.addOns.map((addOn) => ({
+            addOnId: addOn.addOnId,
+            quantity: addOn.quantity,
+          })),
+        })),
+        payment: {
+          paymentType: complimentaryPaymentType._id,
+          amountPaid: 0,
+          amountReceived: 0,
+        },
+        discountImageFile: null,
+        receiptData: null,
+        guestId: reservationFormData.guestId || null,
+      };
+
+      await createFullReservation(payload);
+      toast.success("Complimentary reservation created successfully!");
+      navigate(`/billing/`);
+    } catch (err) {
+      console.error("Complimentary reservation creation error:", err);
+      toast.error(
+        err.message || "Failed to create complimentary reservation. Please try again.",
+      );
+    }
+  };
+
   const submitReservation = async () => {
     if (!validateStep4()) return;
 
@@ -1414,9 +1555,9 @@ export default function ReservationProcess() {
                 right={
                   <div className="flex flex-wrap gap-3 text-xs text-gray-600">
                     <span>
-                      Adults:{" "}
+                      Guests:{" "}
                       <b className="text-gray-900">
-                        {reservationFormData.adults}
+                        {requiredCapacity}
                       </b>
                     </span>
                     <span className="text-gray-300">•</span>
@@ -1426,7 +1567,12 @@ export default function ReservationProcess() {
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
-                      Capacity: <b className="text-gray-900">{totalCapacity}</b>
+                      Room Cap: <b className="text-gray-900">{roomCapacity}</b>
+                    </span>
+                    <span className="text-gray-300">•</span>
+                    <span>
+                      Cottage Cap:{" "}
+                      <b className="text-gray-900">{cottageCapacity}</b>
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
@@ -1484,6 +1630,15 @@ export default function ReservationProcess() {
                         Cottages ({cottageCount})
                       </button>
                     </div>
+                    <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={fitCapacityOnly}
+                        onChange={(e) => setFitCapacityOnly(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/20"
+                      />
+                      Fit all guests only
+                    </label>
                   </div>
                 </div>
 
@@ -1510,6 +1665,26 @@ export default function ReservationProcess() {
                           </span>
                           <span className="text-gray-400 ml-1">selected</span>
                         </div>
+                      </div>
+                      <div className="mb-2 text-xs text-gray-600">
+                        {capacityMet ? (
+                          <span className="font-medium text-[#00af00]">
+                            Capacity requirement met by {capacityMetBy}.
+                          </span>
+                        ) : (
+                          <span>
+                            Remaining needed - Rooms:{" "}
+                            <b className="text-gray-900">
+                              {hasRoomsSelected ? remainingRoomCapacityNeeded : 0}
+                            </b>
+                            , Cottages:{" "}
+                            <b className="text-gray-900">
+                              {hasCottagesSelected
+                                ? remainingCottageCapacityNeeded
+                                : 0}
+                            </b>
+                          </span>
+                        )}
                       </div>
 
                       <FieldError text={errors.rooms} />
@@ -2017,6 +2192,27 @@ export default function ReservationProcess() {
                     </div>
                   )}
 
+                  {/* Complimentary toggle */}
+                  <div className="sm:col-span-2">
+                    <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={isComplimentaryReservation}
+                        onChange={(e) =>
+                          setIsComplimentaryReservation(e.target.checked)
+                        }
+                        className="h-4 w-4 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/20"
+                      />
+                      Complimentary booking (skip payment step)
+                    </label>
+                    {isComplimentaryReservation && (
+                      <div className="mt-2 rounded-lg border border-purple-200 bg-purple-50 p-2 text-xs text-purple-800">
+                        Step 4 (Payment) will be skipped and reservation will be
+                        created with zero payment.
+                      </div>
+                    )}
+                  </div>
+
                   {/* First Name */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
@@ -2462,45 +2658,7 @@ export default function ReservationProcess() {
                         Receipt Information *
                       </div>
                       <div className="text-xs text-gray-500 mb-3">
-                        Please provide either a reference number OR upload a
-                        receipt image.
-                      </div>
-                    </div>
-
-                    {/* Reference Number Field */}
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Reference Number
-                        <span className="text-xs text-gray-500 ml-2">
-                          (Optional if image uploaded)
-                        </span>
-                      </label>
-                      <input
-                        type="text"
-                        value={referenceNumber}
-                        onChange={(e) => {
-                          setReferenceNumber(e.target.value);
-                          setFieldError("receipt", "");
-                        }}
-                        placeholder="e.g., GCash Ref #, Bank Transfer Ref #"
-                        className="w-full h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200"
-                        disabled={selectedReceiptImage !== null}
-                      />
-                      {selectedReceiptImage && (
-                        <p className="text-xs text-amber-600 mt-1">
-                          Reference number disabled because image is uploaded.
-                          Clear image to use reference number.
-                        </p>
-                      )}
-                    </div>
-
-                    {/* OR Divider */}
-                    <div className="relative my-4">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-200"></div>
-                      </div>
-                      <div className="relative flex justify-center text-xs">
-                        <span className="px-2 bg-white text-gray-500">OR</span>
+                        Upload receipt image (required).
                       </div>
                     </div>
 
@@ -2510,7 +2668,7 @@ export default function ReservationProcess() {
                         <label className="text-sm font-medium text-gray-700">
                           Receipt Image
                           <span className="text-xs text-gray-500 ml-2">
-                            (Optional if ref# provided)
+                            (Required)
                           </span>
                         </label>
                         <div className="flex items-center gap-2">
@@ -2585,31 +2743,21 @@ export default function ReservationProcess() {
                             className="mx-auto mb-3 text-gray-400"
                             size={28}
                           />
-                          <div>Upload receipt image (optional)</div>
-                          <div className="text-xs text-gray-400 mt-1">
-                            {referenceNumber
-                              ? "Reference number provided, image is optional"
-                              : "Upload image or provide reference number"}
-                          </div>
+                          <div>Upload receipt image (required)</div>
                         </div>
                       )}
                     </div>
 
                     {/* Status indicator */}
                     <div className="mt-3 text-xs">
-                      {referenceNumber || receiptImagePreview ? (
+                      {receiptImagePreview ? (
                         <div className="text-[#00af00] flex items-center gap-1">
                           <FiCheckCircle size={12} />
-                          {referenceNumber && receiptImagePreview
-                            ? "Both reference number and image provided"
-                            : referenceNumber
-                              ? "Reference number provided"
-                              : "Receipt image uploaded"}
+                          Receipt image uploaded
                         </div>
                       ) : (
                         <div className="text-amber-600">
-                          Please provide either a reference number or upload a
-                          receipt image
+                          Please upload a receipt image
                         </div>
                       )}
                     </div>
@@ -2777,6 +2925,9 @@ export default function ReservationProcess() {
                   {step === 4 && (
                     <>
                       <div className="border-t border-gray-200 pt-4"></div>
+                      <div className="mb-3 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                        Non-VAT: All billing amounts are VAT-exempt.
+                      </div>
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-gray-500">Total Amount</span>
@@ -2829,12 +2980,19 @@ export default function ReservationProcess() {
               </div>
 
               {/* Warning messages */}
-              {step === 2 && reservationFormData.adults > totalCapacity && (
+              {step === 2 && !capacityMet && (
                 <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-800">
                   <div className="font-medium">Capacity Warning</div>
                   <div className="mt-1">
-                    Selected capacity ({totalCapacity}) is not enough for{" "}
-                    {reservationFormData.adults} adults. Add another item.
+                    Rooms and cottages are checked separately for {requiredCapacity}{" "}
+                    guests. Rooms capacity: {roomCapacity}, cottages capacity:{" "}
+                    {cottageCapacity}.{" "}
+                    {hasRoomsSelected && !roomsSatisfyCapacity
+                      ? `Add ${remainingRoomCapacityNeeded} more room capacity. `
+                      : ""}
+                    {hasCottagesSelected && !cottagesSatisfyCapacity
+                      ? `Add ${remainingCottageCapacityNeeded} more cottage capacity.`
+                      : ""}
                   </div>
                 </div>
               )}
@@ -2917,8 +3075,10 @@ export default function ReservationProcess() {
                 }
               `}
             >
-              Next
-              <FiChevronRight />
+              {isComplimentaryReservation
+                ? "Complete Complimentary Reservation"
+                : "Next"}
+              {!isComplimentaryReservation && <FiChevronRight />}
             </button>
           )}
 
