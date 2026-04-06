@@ -23,7 +23,7 @@ import {
   FiXCircle,
   FiClock,
   FiMoreVertical,
-  FiPlus,
+  FiList,
 } from "react-icons/fi";
 import Pagination from "../components/ui/Pagination.jsx";
 
@@ -50,6 +50,7 @@ const Reports = () => {
     fetchReservationsReport,
     fetchReservationStatusReport,
     fetchOccupancyReport,
+    fetchOperationsLogsReport,
     fetchRevenueReport,
     fetchPaymentReport,
     fetchRefundReport,
@@ -86,6 +87,13 @@ const Reports = () => {
       label: "Occupancy",
       value: "occupancy",
       icon: <FiHome />,
+      color: "text-[#0c2bfc]",
+      bgColor: "bg-[#0c2bfc]/10",
+    },
+    {
+      label: "Operations",
+      value: "operations-logs",
+      icon: <FiList />,
       color: "text-[#0c2bfc]",
       bgColor: "bg-[#0c2bfc]/10",
     },
@@ -137,6 +145,20 @@ const Reports = () => {
     { label: "No Show", value: "no_show", color: "text-orange-600" },
   ];
 
+  const unitTypeOptions = [
+    { label: "All Units", value: "all" },
+    { label: "Rooms", value: "room" },
+    { label: "Cottages", value: "cottage" },
+  ];
+
+  const actionOptions = [
+    { label: "All Actions", value: "all" },
+    { label: "Cleaning", value: "cleaning" },
+    { label: "Maintenance", value: "maintenance" },
+    { label: "Check In", value: "check_in" },
+    { label: "Check Out", value: "check_out" },
+  ];
+
   useEffect(() => {
     const today = new Date();
     const lastWeek = new Date();
@@ -164,8 +186,38 @@ const Reports = () => {
     fetchOutstandingBalanceReport();
   }, []);
 
+  useEffect(() => {
+    const reportType = reportTypes[activeTab]?.value;
+    if (reportType !== "operations-logs") return;
+
+    const currentFilters = {
+      ...filters,
+      period: filters.period === "custom" ? "custom" : filters.period,
+      startDate:
+        filters.period === "custom"
+          ? dateRange.startDate.toISOString()
+          : undefined,
+      endDate:
+        filters.period === "custom" ? dateRange.endDate.toISOString() : undefined,
+      page,
+      pageSize,
+    };
+
+    fetchOperationsLogsReport(currentFilters).catch(() => {});
+  }, [
+    activeTab,
+    page,
+    pageSize,
+    filters.period,
+    filters.unitType,
+    filters.action,
+    dateRange.startDate,
+    dateRange.endDate,
+  ]);
+
   const handleTabChange = (index) => {
     setActiveTab(index);
+    setPage(1);
   };
 
   const handleFilterChange = (key, value) => {
@@ -206,6 +258,13 @@ const Reports = () => {
           break;
         case "occupancy":
           await fetchOccupancyReport(currentFilters);
+          break;
+        case "operations-logs":
+          await fetchOperationsLogsReport({
+            ...currentFilters,
+            page,
+            pageSize,
+          });
           break;
         case "revenue":
           await fetchRevenueReport(currentFilters);
@@ -269,7 +328,13 @@ const Reports = () => {
       case "unpaid":
         return "bg-red-100 text-red-700";
       case "checked_in":
+      case "check_in":
+      case "cleaning":
         return "bg-blue-100 text-blue-700";
+      case "maintenance":
+        return "bg-amber-100 text-amber-700";
+      case "check_out":
+        return "bg-emerald-100 text-emerald-700";
       case "available":
       case "active":
         return "bg-green-100 text-green-700";
@@ -1000,6 +1065,182 @@ const Reports = () => {
     );
   };
 
+  const renderOperationsLogsReport = () => {
+    const data = reports.operationsLogs;
+    if (!data) return null;
+
+    const logs = Array.isArray(data.logs) ? data.logs : [];
+    const summary = data.summary || {};
+    const actionSummary = summary.actions || {};
+    const unitSummary = summary.units || {};
+    const total = Number(summary.total || data?.pagination?.total || 0);
+    const totalPages = Math.max(1, Number(data?.pagination?.totalPages || 1));
+
+    const actionLabel = (value) =>
+      String(value || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+    const actorName = (actor) => {
+      if (!actor) return "System";
+      const full = `${actor.firstName || ""} ${actor.lastName || ""}`.trim();
+      return full || actor.username || "System";
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard title="Total Logs" value={total} icon={<FiList />} />
+          <MetricCard
+            title="Cleaning Logs"
+            value={Number(actionSummary.cleaning || 0)}
+            icon={<FiRefreshCw />}
+          />
+          <MetricCard
+            title="Maintenance Logs"
+            value={Number(actionSummary.maintenance || 0)}
+            icon={<FiActivity />}
+          />
+          <MetricCard
+            title="Check In / Out"
+            value={`${Number(actionSummary.check_in || 0)} / ${Number(actionSummary.check_out || 0)}`}
+            icon={<FiTrendingUp />}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">
+              Unit Type Breakdown
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Rooms</span>
+                <span className="font-semibold text-gray-900">
+                  {Number(unitSummary.room || 0)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-gray-600">Cottages</span>
+                <span className="font-semibold text-gray-900">
+                  {Number(unitSummary.cottage || 0)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h4 className="text-sm font-semibold text-gray-900 mb-3">
+              Action Breakdown
+            </h4>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {["cleaning", "maintenance", "check_in", "check_out"].map((k) => (
+                <div
+                  key={k}
+                  className="rounded-lg border border-gray-200 bg-gray-50 p-3"
+                >
+                  <div className="text-gray-600">{actionLabel(k)}</div>
+                  <div className="text-base font-semibold text-gray-900">
+                    {Number(actionSummary[k] || 0)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Operations Logs Details
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Date
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Unit Type
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Unit ID
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Action
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Reservation #
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Performed By
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {logs.map((log) => {
+                  const unitNo =
+                    log?.unitId?.roomNo || log?.unitId?.roomNumber || "N/A";
+                  return (
+                    <tr
+                      key={log._id}
+                      className="hover:bg-gray-50 transition-colors duration-150"
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {log?.createdAt
+                          ? format(new Date(log.createdAt), "MMM dd, yyyy HH:mm")
+                          : "N/A"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                          {String(log?.unitType || "N/A").toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        {unitNo}
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={log?.action} />
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {log?.reservationId?.reservationNumber || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {actorName(log?.performedBy)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {logs.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 mb-2">
+                <FiList className="w-12 h-12 mx-auto" />
+              </div>
+              <p className="text-gray-500">
+                No operation logs found for this period
+              </p>
+            </div>
+          )}
+        </div>
+
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          setPage={setPage}
+          total={total}
+          pageSize={pageSize}
+          color="blue"
+        />
+      </div>
+    );
+  };
+
   const renderRefundReport = () => {
     const data = reports.refunds;
     if (!data) return null;
@@ -1282,6 +1523,8 @@ const Reports = () => {
         return renderReservationStatusReport();
       case "occupancy":
         return renderOccupancyReport();
+      case "operations-logs":
+        return renderOperationsLogsReport();
       case "revenue":
         return renderRevenueReport();
       case "payments":
@@ -1320,6 +1563,12 @@ const Reports = () => {
         );
     }
   };
+
+  const activeReportType = reportTypes[activeTab].value;
+  const activeReportData =
+    activeReportType === "operations-logs"
+      ? reports.operationsLogs
+      : reports[activeReportType];
 
   if (loading) {
     return (
@@ -1415,7 +1664,7 @@ const Reports = () => {
 
       {/* Report Type Cards */}
       <div className="mb-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-3">
           {reportTypes.map((type, index) => (
             <button
               key={type.value}
@@ -1554,6 +1803,80 @@ const Reports = () => {
                 </select>
               </div>
             )}
+
+            {reportTypes[activeTab].value === "operations-logs" && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Unit Type
+                  </label>
+                  <select
+                    value={filters.unitType || "all"}
+                    onChange={(e) => handleFilterChange("unitType", e.target.value)}
+                    className="
+                    w-full p-3 rounded-xl border border-gray-200 
+                    bg-white
+                    focus:border-[#0c2bfc] focus:ring-2 focus:ring-[#0c2bfc]/20
+                    outline-none transition-all duration-200
+                    appearance-none
+                  "
+                  >
+                    {unitTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Action
+                  </label>
+                  <select
+                    value={filters.action || "all"}
+                    onChange={(e) => handleFilterChange("action", e.target.value)}
+                    className="
+                    w-full p-3 rounded-xl border border-gray-200 
+                    bg-white
+                    focus:border-[#0c2bfc] focus:ring-2 focus:ring-[#0c2bfc]/20
+                    outline-none transition-all duration-200
+                    appearance-none
+                  "
+                  >
+                    {actionOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Rows Per Page
+                  </label>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(1);
+                    }}
+                    className="
+                    w-full p-3 rounded-xl border border-gray-200 
+                    bg-white
+                    focus:border-[#0c2bfc] focus:ring-2 focus:ring-[#0c2bfc]/20
+                    outline-none transition-all duration-200
+                    appearance-none
+                  "
+                  >
+                    {[10, 20, 50].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-200">
@@ -1615,17 +1938,15 @@ const Reports = () => {
             <h2 className="text-xl font-bold text-gray-900">
               {reportTypes[activeTab].label} Report
             </h2>
-            {reports[reportTypes[activeTab].value]?.dateRange && (
+            {activeReportData?.dateRange && (
               <p className="text-sm text-gray-600 mt-1">
                 {format(
-                  new Date(
-                    reports[reportTypes[activeTab].value].dateRange.start,
-                  ),
+                  new Date(activeReportData.dateRange.start),
                   "MMM dd, yyyy",
                 )}
                 {" - "}
                 {format(
-                  new Date(reports[reportTypes[activeTab].value].dateRange.end),
+                  new Date(activeReportData.dateRange.end),
                   "MMM dd, yyyy",
                 )}
               </p>

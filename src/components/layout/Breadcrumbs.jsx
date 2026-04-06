@@ -26,6 +26,7 @@ const labelMap = {
   "discount-types": "Discount Types",
   "payment-types": "Payment Types",
   "payment-options": "Payment Options",
+  "operations-logs": "Operations Logs",
 };
 
 export default function Breadcrumbs() {
@@ -36,7 +37,12 @@ export default function Breadcrumbs() {
   const actualSegments = segments[0] === "admin" ? segments.slice(1) : segments;
 
   // Check for parent-child relationships
-  const isUnderRooms = ["room-types", "amenities", "add-ons"].includes(
+  const isUnderRooms = [
+    "room-types",
+    "amenities",
+    "add-ons",
+    "operations-logs",
+  ].includes(
     actualSegments[0],
   );
   const isUnderReservations = [

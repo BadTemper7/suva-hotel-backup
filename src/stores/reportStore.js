@@ -1,7 +1,36 @@
 // stores/useReportStore.js
 import { create } from "zustand";
+import { getToken } from "../app/auth.js";
 
-const API = import.meta.env.VITE_SERVER_URI || "http://localhost:5000/api";
+/**
+ * Prefer explicit env (`VITE_SERVER_URI` / `VITE_SERVER_LOCAL`) so a backend on a non-default
+ * port still works. If unset in dev, use same-origin `/api` (Vite proxy → vite.config target).
+ */
+function resolveApiBase() {
+  const fromEnv =
+    import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
+  if (fromEnv) return String(fromEnv).replace(/\/+$/, "");
+  if (import.meta.env.DEV) return "/api";
+  return "http://localhost:5000/api";
+}
+
+const API = resolveApiBase();
+
+async function parseJsonResponseLoose(res) {
+  const text = await res.text();
+  const trimmed = text.trimStart();
+  const isHtml =
+    trimmed.startsWith("<!") ||
+    trimmed.toLowerCase().startsWith("<!doctype");
+  if (isHtml) {
+    return { res, isHtml: true, data: null, parseOk: false };
+  }
+  try {
+    return { res, isHtml: false, data: JSON.parse(text), parseOk: true };
+  } catch {
+    return { res, isHtml: false, data: null, parseOk: false };
+  }
+}
 
 const buildQueryParams = (filters) => {
   const params = new URLSearchParams();
@@ -11,6 +40,12 @@ const buildQueryParams = (filters) => {
 
   if (filters.status && filters.status !== "all") {
     params.append("status", filters.status);
+  }
+  if (filters.unitType && filters.unitType !== "all") {
+    params.append("unitType", filters.unitType);
+  }
+  if (filters.action && filters.action !== "all") {
+    params.append("action", filters.action);
   }
 
   if (filters.period === "custom") {
@@ -27,6 +62,7 @@ export const useReportStore = create((set, get) => ({
     reservations: null,
     reservationStatus: null,
     occupancy: null,
+    operationsLogs: null,
     revenue: null,
     payments: null,
     refunds: null,
@@ -36,10 +72,12 @@ export const useReportStore = create((set, get) => ({
   exportLoading: false,
   error: null,
   filters: {
-    period: "daily",
+    period: "weekly",
     startDate: null,
     endDate: null,
     status: "all",
+    unitType: "all",
+    action: "all",
   },
 
   // Actions
@@ -48,10 +86,12 @@ export const useReportStore = create((set, get) => ({
   resetFilters: () =>
     set({
       filters: {
-        period: "daily",
+        period: "weekly",
         startDate: null,
         endDate: null,
         status: "all",
+        unitType: "all",
+        action: "all",
       },
     }),
 
@@ -59,11 +99,14 @@ export const useReportStore = create((set, get) => ({
   fetchReservationsReport: async (filters = {}) => {
     set({ loading: true, error: null });
     try {
+      const currentFilters = { ...get().filters, ...filters };
       const params = new URLSearchParams();
-      if (filters.period) params.append("period", filters.period);
-      if (filters.startDate) params.append("startDate", filters.startDate);
-      if (filters.endDate) params.append("endDate", filters.endDate);
-      if (filters.status) params.append("status", filters.status);
+      if (currentFilters.period) params.append("period", currentFilters.period);
+      if (currentFilters.startDate) {
+        params.append("startDate", currentFilters.startDate);
+      }
+      if (currentFilters.endDate) params.append("endDate", currentFilters.endDate);
+      if (currentFilters.status) params.append("status", currentFilters.status);
 
       const res = await fetch(
         `${API}/reports/reservations?${params.toString()}`,
@@ -139,6 +182,78 @@ export const useReportStore = create((set, get) => ({
 
       set((state) => ({
         reports: { ...state.reports, occupancy: data },
+        loading: false,
+      }));
+
+      return data;
+    } catch (err) {
+      set({ loading: false, error: err.message });
+      throw err;
+    }
+  },
+
+  fetchOperationsLogsReport: async (filters = {}) => {
+    set({ loading: true, error: null });
+    try {
+      const currentFilters = { ...get().filters, ...filters };
+      const params = new URLSearchParams();
+      if (currentFilters.period) params.append("period", currentFilters.period);
+      if (currentFilters.startDate) {
+        params.append("startDate", currentFilters.startDate);
+      }
+      if (currentFilters.endDate) params.append("endDate", currentFilters.endDate);
+      if (currentFilters.unitType) params.append("unitType", currentFilters.unitType);
+      if (currentFilters.action) params.append("action", currentFilters.action);
+      if (currentFilters.page) params.append("page", String(currentFilters.page));
+      if (currentFilters.pageSize) {
+        params.append("pageSize", String(currentFilters.pageSize));
+      }
+
+      const qs = params.toString();
+      let parsed = await parseJsonResponseLoose(
+        await fetch(`${API}/reports/operations-logs?${qs}`),
+      );
+
+      const shouldFallback =
+        parsed.isHtml ||
+        !parsed.parseOk ||
+        parsed.res.status === 404 ||
+        parsed.res.status === 502 ||
+        parsed.res.status === 504;
+
+      if (shouldFallback) {
+        const token = getToken();
+        if (!token) {
+          throw new Error(
+            parsed.isHtml
+              ? "Reports URL returned a web page instead of JSON. Development uses /api via Vite proxy—ensure the API is running. For production, set VITE_SERVER_URI to your backend (e.g. https://your-server.com/api). You can also sign in and we will retry using /rooms/operations-logs."
+              : parsed.data?.message ||
+                  "Failed to fetch operations logs report (no session for fallback).",
+          );
+        }
+        parsed = await parseJsonResponseLoose(
+          await fetch(`${API}/rooms/operations-logs?format=report&${qs}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        );
+      }
+
+      if (parsed.isHtml || !parsed.parseOk) {
+        throw new Error(
+          "Operations report did not return JSON. Confirm the backend is running, routes are deployed, and your admin token is valid.",
+        );
+      }
+
+      if (!parsed.res.ok) {
+        throw new Error(
+          parsed.data?.message || "Failed to fetch operations logs report",
+        );
+      }
+
+      const data = parsed.data;
+
+      set((state) => ({
+        reports: { ...state.reports, operationsLogs: data },
         loading: false,
       }));
 
@@ -311,6 +426,7 @@ export const useReportStore = create((set, get) => ({
         reservations: null,
         reservationStatus: null,
         occupancy: null,
+        operationsLogs: null,
         revenue: null,
         payments: null,
         refunds: null,
