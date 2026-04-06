@@ -18,6 +18,7 @@ const BILLING_STYLES = {
   unpaid: "bg-gray-100 text-gray-700",
   partial: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
   paid: "bg-[#00af00]/10 text-[#00af00]",
+  free: "bg-purple-100 text-purple-700",
   refunded: "bg-purple-100 text-purple-700",
   voided: "bg-gray-100 text-gray-700",
 };
@@ -42,6 +43,7 @@ function normalizeBillingStatus(v) {
     .trim();
   if (s === "paid") return "paid";
   if (s === "partial" || s === "partially paid") return "partial";
+  if (s === "free") return "free";
   if (s === "refunded") return "refunded";
   if (s === "voided" || s === "cancelled") return "voided";
   return "unpaid";
@@ -69,6 +71,8 @@ function StatusPill({ value, variant = "reservation" }) {
         ? "Paid"
         : v === "partial"
           ? "Partially Paid"
+          : v === "free"
+            ? "Free"
           : v === "refunded"
             ? "Refunded"
             : v === "voided"
@@ -236,6 +240,16 @@ export default function ReservationStatusModal({
       toast.error("Cancel reason is required.");
       return;
     }
+
+    const currentStatus = normalizeReservationStatus(reservation?.status);
+    const nextStatus = normalizeReservationStatus(status);
+    if (currentStatus === "cancelled" && nextStatus === "confirmed") {
+      const proceed = window.confirm(
+        "This reservation is currently Cancelled. Are you sure you want to change it back to Confirmed?",
+      );
+      if (!proceed) return;
+    }
+
     onSave?.(status, cancelReason.trim());
   };
 
@@ -447,11 +461,6 @@ export default function ReservationStatusModal({
                     <StatusPill value={billing?.status} variant="billing" />
                   ) : (
                     <span className="text-xs text-gray-500">—</span>
-                  )}
-                  {billing && isComplimentary && (
-                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-purple-100 text-purple-700">
-                      Free
-                    </span>
                   )}
                 </div>
               </div>

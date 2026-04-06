@@ -309,6 +309,9 @@ export default function EditBillingModal({ open, onClose, billing, onSave }) {
                       <option value="unpaid">Unpaid</option>
                       <option value="partial">Partially Paid</option>
                       <option value="paid">Paid</option>
+                      {(billing?.isComplimentary || status === "free") && (
+                        <option value="free">Free</option>
+                      )}
                       {/* Only show Refunded option if isRefundable is true */}
                       {isRefundable && (
                         <option value="refunded">Refunded</option>

@@ -501,7 +501,13 @@ function ViewReceiptsModal({ billing, open, onClose }) {
                           ? "bg-[#00af00]/10 text-[#00af00]"
                           : billing.status === "partial"
                             ? "bg-[#0c2bfc]/10 text-[#0c2bfc]"
-                            : "bg-red-100 text-red-700"
+                            : billing.status === "free"
+                              ? "bg-purple-100 text-purple-700"
+                              : billing.status === "refunded"
+                                ? "bg-purple-100 text-purple-700"
+                                : billing.status === "voided"
+                                  ? "bg-gray-100 text-gray-700"
+                                  : "bg-red-100 text-red-700"
                       }`}
                     >
                       {billing.status?.charAt(0).toUpperCase() +

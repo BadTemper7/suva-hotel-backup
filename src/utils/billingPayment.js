@@ -8,7 +8,7 @@ export function formatMoneyPhp(n) {
 export function isBillingFullyPaid(billing) {
   if (!billing) return false;
   const st = String(billing.status || "").toLowerCase();
-  if (st === "paid") return true;
+  if (st === "paid" || st === "free") return true;
   const total = Number(billing.totalAmount || 0);
   if (total <= 0) return true;
   const bal = Number(billing.balance);

@@ -29,6 +29,7 @@ const STATUS_STYLES = {
   unpaid: "bg-red-100 text-red-700",
   partial: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
   paid: "bg-[#00af00]/10 text-[#00af00]",
+  free: "bg-purple-100 text-purple-700",
   refunded: "bg-purple-100 text-purple-700",
   voided: "bg-gray-100 text-gray-700",
 };
@@ -39,6 +40,7 @@ function normalizeStatus(value) {
     .trim();
   if (raw === "paid") return "paid";
   if (raw === "partial" || raw === "partially paid") return "partial";
+  if (raw === "free") return "free";
   if (raw === "refunded") return "refunded";
   if (raw === "voided" || raw === "cancelled") return "voided";
   return "unpaid";
@@ -49,6 +51,7 @@ function StatusPill({ value }) {
   const labels = {
     paid: "Paid",
     partial: "Partial",
+    free: "Free",
     unpaid: "Unpaid",
     refunded: "Refunded",
     voided: "Voided",
@@ -87,10 +90,10 @@ function BillingCard({
   const guest = billing?.reservationId?.guestId;
   const guestName = guest ? `${guest.firstName} ${guest.lastName}` : "—";
   const isPaid = billing.status === "paid";
+  const isFree = billing.status === "free";
   const isRefunded = billing.status === "refunded";
   const recent = isRecentBilling(billing.createdAt);
   const hasDiscount = billing.discountAmount > 0;
-  const isComplimentary = Boolean(billing.isComplimentary);
 
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
@@ -150,11 +153,6 @@ function BillingCard({
             <div className="text-sm font-semibold text-gray-900">
               {money(billing.amountPaid)}
             </div>
-            {isComplimentary && (
-              <div className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
-                Free
-              </div>
-            )}
           </div>
           <div>
             <div className="text-xs text-gray-500">Due Now</div>
@@ -225,7 +223,7 @@ function BillingCard({
         </button>
 
         {/* Refund Button - Only show for eligible billings (not refunded, not paid, has payment) */}
-        {!isRefunded && !isPaid && billing.amountPaid > 0 && canManage && (
+        {!isRefunded && !isPaid && !isFree && billing.amountPaid > 0 && canManage && (
           <button
             type="button"
             onClick={() => onRefund(billing)}
@@ -257,6 +255,18 @@ function BillingCard({
           "
           >
             <FiUpload className="w-4 h-4" /> Uploaded
+          </span>
+        ) : isFree ? (
+          <span
+            className="
+            h-10 px-4 rounded-xl 
+            border border-gray-200 
+            bg-purple-100
+            text-sm font-medium inline-flex items-center justify-center gap-2
+            text-purple-700
+          "
+          >
+            <FiTag className="w-4 h-4" /> Free
           </span>
         ) : isRefunded ? (
           <span
@@ -616,6 +626,7 @@ export default function Billing() {
               <option value="unpaid">Unpaid</option>
               <option value="partial">Partially Paid</option>
               <option value="paid">Paid</option>
+              <option value="free">Free</option>
               <option value="refunded">Refunded</option>
               <option value="voided">Voided</option>
             </select>
@@ -765,9 +776,9 @@ export default function Billing() {
                   ? `${guest.firstName} ${guest.lastName}`
                   : "—";
                 const isPaid = b.status === "paid";
+                const isFree = b.status === "free";
                 const recent = isRecentBilling(b.createdAt);
                 const hasDiscount = b.discountAmount > 0;
-                const isComplimentary = Boolean(b.isComplimentary);
 
                 return (
                   <tr
@@ -818,11 +829,6 @@ export default function Billing() {
                       <div className="text-gray-700 font-medium">
                         {money(b.amountPaid)}
                       </div>
-                      {isComplimentary && (
-                        <div className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
-                          Free
-                        </div>
-                      )}
                     </td>
 
                     <td className="px-6 py-4">
@@ -938,6 +944,19 @@ export default function Billing() {
                             title="Already Paid"
                           >
                             <FiUpload className="w-4 h-4" />
+                          </span>
+                        ) : isFree ? (
+                          <span
+                            className="
+          h-10 w-10 rounded-xl 
+          border border-gray-200 
+          bg-purple-100
+          grid place-items-center
+          text-purple-700 cursor-not-allowed
+        "
+                            title="Free Billing"
+                          >
+                            <FiTag className="w-4 h-4" />
                           </span>
                         ) : b.status === "refunded" ? (
                           <span

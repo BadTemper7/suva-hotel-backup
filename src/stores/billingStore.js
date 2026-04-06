@@ -463,6 +463,7 @@ export const useBillingStore = create((set, get) => ({
       paid: "bg-green-50 border-green-100 text-green-700",
       unpaid: "bg-red-50 border-red-100 text-red-700",
       partial: "bg-yellow-50 border-yellow-100 text-yellow-700",
+      free: "bg-purple-50 border-purple-100 text-purple-700",
       refunded: "bg-blue-50 border-blue-100 text-blue-700",
       voided: "bg-gray-50 border-gray-100 text-gray-700",
     };
@@ -488,6 +489,7 @@ export const billingHelpers = {
       paid: "bg-green-50 border-green-100 text-green-700",
       unpaid: "bg-red-50 border-red-100 text-red-700",
       partial: "bg-yellow-50 border-yellow-100 text-yellow-700",
+      free: "bg-purple-50 border-purple-100 text-purple-700",
       refunded: "bg-blue-50 border-blue-100 text-blue-700",
       voided: "bg-gray-50 border-gray-100 text-gray-700",
     };
