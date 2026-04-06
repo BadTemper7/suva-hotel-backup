@@ -7,6 +7,7 @@ import {
   FiTag,
   FiUploadCloud,
   FiGrid,
+  FiList,
   FiTrash2,
   FiFilter,
   FiHome,
@@ -334,6 +335,8 @@ export default function Rooms() {
 
   const openAdd = () =>
     listTab === "room" ? openAddRoom() : openAddCottage();
+  const openOperationLogs = () =>
+    navigate(`/rooms/operations-logs?unitType=${listTab}`);
 
   const openPreview = (room, startIndex = 0) =>
     setPreview({ open: true, room, startIndex });
@@ -498,6 +501,26 @@ export default function Rooms() {
               >
                 <FiGrid /> Add-ons
               </button>
+
+              {canManageRm && (
+                <button
+                  type="button"
+                  onClick={openOperationLogs}
+                  className="
+                    h-11 px-5 rounded-xl 
+                    border border-gray-200 
+                    bg-white
+                    hover:bg-gray-50
+                    text-sm font-medium inline-flex items-center gap-2
+                    transition-all duration-200
+                    hover:shadow-md hover:-translate-y-0.5
+                    active:translate-y-0
+                    text-gray-700 hover:text-[#0c2bfc]
+                  "
+                >
+                  <FiList className="w-4 h-4" /> Logs
+                </button>
+              )}
 
               {canManageRm && (
                 <button

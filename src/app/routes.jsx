@@ -9,6 +9,7 @@ import { ReservationProvider } from "../context/ReservationContext.jsx";
 // Lazy pages
 const Dashboard = lazy(() => import("../pages/Dashboard.jsx"));
 const Rooms = lazy(() => import("../pages/Rooms.jsx"));
+const OperationsLogs = lazy(() => import("../pages/OperationsLogs.jsx"));
 const Reservations = lazy(() => import("../pages/Reservations.jsx"));
 const FrontDesk = lazy(() => import("../pages/FrontDesk.jsx"));
 const ReservationProcess = lazy(
@@ -105,6 +106,13 @@ export default [
             element: withLoader(<RoomTypes />, "Loading room types..."),
           },
           { path: "rooms", element: withLoader(<Rooms />, "Loading rooms...") },
+          {
+            path: "rooms/operations-logs",
+            element: withLoader(
+              <OperationsLogs />,
+              "Loading operations logs...",
+            ),
+          },
           {
             path: "amenities",
             element: withLoader(<Amenities />, "Loading amenities..."),
