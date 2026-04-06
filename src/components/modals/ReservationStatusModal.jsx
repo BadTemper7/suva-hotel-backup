@@ -243,9 +243,9 @@ export default function ReservationStatusModal({
 
     const currentStatus = normalizeReservationStatus(reservation?.status);
     const nextStatus = normalizeReservationStatus(status);
-    if (currentStatus === "cancelled" && nextStatus === "confirmed") {
+    if (nextStatus === "confirmed" && currentStatus !== "confirmed") {
       const proceed = window.confirm(
-        "This reservation is currently Cancelled. Are you sure you want to change it back to Confirmed?",
+        `This reservation is currently ${currentStatus.replace("_", " ")}. Are you sure you want to change it to Confirmed?`,
       );
       if (!proceed) return;
     }

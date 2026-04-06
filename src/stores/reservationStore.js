@@ -1,5 +1,6 @@
 // src/stores/reservationStore.js
 import { create } from "zustand";
+import { getUser } from "../app/auth.js";
 
 const API =
   import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
@@ -126,11 +127,13 @@ export const useReservationStore = create((set, get) => ({
   updateReservationStatus: async (id, status, cancelReason = "") => {
     set({ loading: true, error: null });
     try {
+      const currentUser = getUser();
       const res = await fetch(`${API}/reservations/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status,
+          ...(currentUser?._id ? { userId: currentUser._id } : {}),
           ...(cancelReason ? { cancelReason: String(cancelReason).trim() } : {}),
         }),
       });
@@ -558,6 +561,7 @@ export const useReservationStore = create((set, get) => ({
     rooms = [],
     payment,
     discountImageFile = null,
+    discountImageFiles = [],
     receiptData = null,
     guestId = null,
   }) => {
@@ -727,17 +731,36 @@ export const useReservationStore = create((set, get) => ({
       }
 
       // Step 5: Upload discount image if exists
-      if (reservationData.discountId && discountImageFile) {
-        const discountFormData = new FormData();
-        discountFormData.append("image", discountImageFile);
-        discountFormData.append("discountId", reservationData.discountId);
-        discountFormData.append("billingId", billingId);
-        discountFormData.append("status", "confirmed");
-
-        await fetch(`${API}/discount-images`, {
-          method: "POST",
-          body: discountFormData,
-        });
+      const filesToUpload = Array.isArray(discountImageFiles)
+        ? discountImageFiles.filter(Boolean)
+        : [];
+      if (reservationData.discountId) {
+        if (filesToUpload.length > 0) {
+          for (const file of filesToUpload) {
+            const discountFormData = new FormData();
+            discountFormData.append("image", file);
+            discountFormData.append("discountId", reservationData.discountId);
+            discountFormData.append("billingId", billingId);
+            discountFormData.append("status", "confirmed");
+            const resDiscount = await fetch(`${API}/discount-images`, {
+              method: "POST",
+              body: discountFormData,
+            });
+            await safeJson(resDiscount);
+          }
+        } else if (discountImageFile) {
+          // Backward compatibility with previous single-file callers.
+          const discountFormData = new FormData();
+          discountFormData.append("image", discountImageFile);
+          discountFormData.append("discountId", reservationData.discountId);
+          discountFormData.append("billingId", billingId);
+          discountFormData.append("status", "confirmed");
+          const resDiscount = await fetch(`${API}/discount-images`, {
+            method: "POST",
+            body: discountFormData,
+          });
+          await safeJson(resDiscount);
+        }
       }
 
       console.log("Payment data:", payment);
