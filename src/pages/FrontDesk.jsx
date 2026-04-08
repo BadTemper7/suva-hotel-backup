@@ -22,6 +22,7 @@ import { isBillingFullyPaid } from "../utils/billingPayment.js";
 import {
   isSameCalendarDay,
   selectArrivalsToday,
+  selectPastDueArrivals,
   selectInHouse,
   selectDeparturesToday,
   selectCheckedOutToday,
@@ -153,6 +154,10 @@ export default function FrontDesk() {
     () => selectArrivalsToday(reservations),
     [reservations],
   );
+  const pastDueArrivals = useMemo(
+    () => selectPastDueArrivals(reservations),
+    [reservations],
+  );
   const inHouse = useMemo(() => selectInHouse(reservations), [reservations]);
   const departures = useMemo(
     () => selectDeparturesToday(reservations),
@@ -183,10 +188,11 @@ export default function FrontDesk() {
 
   const rows = useMemo(() => {
     if (tab === "arrivals") return arrivals;
+    if (tab === "pastDueArrivals") return pastDueArrivals;
     if (tab === "inHouse") return inHouse;
     if (tab === "departures") return departures;
     return checkedOutToday;
-  }, [tab, arrivals, inHouse, departures, checkedOutToday]);
+  }, [tab, arrivals, pastDueArrivals, inHouse, departures, checkedOutToday]);
 
   const runCheckIn = useCallback(
     async (reservation) => {
@@ -427,6 +433,12 @@ export default function FrontDesk() {
           >
             Checked out today ({checkedOutToday.length})
           </TabButton>
+          <TabButton
+            active={tab === "pastDueArrivals"}
+            onClick={() => setTab("pastDueArrivals")}
+          >
+            Past Confirmed Bookings (no check-in) ({pastDueArrivals.length})
+          </TabButton>
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -542,6 +554,22 @@ export default function FrontDesk() {
                                 <FiLogIn className="h-3.5 w-3.5" />
                                 Check in
                               </button>
+                            )}
+                            {tab === "pastDueArrivals" && (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  disabled
+                                  className="h-9 px-3 rounded-xl bg-gray-100 text-gray-500 text-xs font-medium inline-flex items-center gap-1 cursor-not-allowed"
+                                  title="Check-in is no longer allowed because the arrival date has passed."
+                                >
+                                  <FiLogIn className="h-3.5 w-3.5" />
+                                  Check in
+                                </button>
+                                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                                  Check-in not allowed
+                                </span>
+                              </div>
                             )}
                             {(tab === "inHouse" || tab === "departures") && (
                               <button

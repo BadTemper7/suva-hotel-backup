@@ -16,6 +16,17 @@ export function selectArrivalsToday(reservations, today = new Date()) {
   });
 }
 
+export function selectPastDueArrivals(reservations, today = new Date()) {
+  const startToday = startOfLocalDay(today).getTime();
+  const list = (reservations || []).filter((r) => {
+    if (!r || String(r.status) !== "confirmed") return false;
+    if (!r.checkIn) return false;
+    const startCheckIn = startOfLocalDay(r.checkIn).getTime();
+    return startCheckIn < startToday;
+  });
+  return [...list].sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn));
+}
+
 export function selectInHouse(reservations) {
   const list = (reservations || []).filter(
     (r) => r && String(r.status) === "checked_in",
