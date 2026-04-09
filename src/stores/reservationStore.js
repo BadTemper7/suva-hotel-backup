@@ -657,6 +657,8 @@ export const useReservationStore = create((set, get) => ({
         checkOut: reservationData.checkOut,
         adults: reservationData.adults,
         children: reservationData.children || 0,
+        seniorCitizenCount: reservationData.seniorCitizenCount ?? 0,
+        pwdCount: reservationData.pwdCount ?? 0,
         guestId: finalGuestId,
         guest: normalizedGuest,
         notes: [

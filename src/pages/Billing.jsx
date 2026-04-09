@@ -463,6 +463,25 @@ export default function Billing() {
     }
   };
 
+  /** After confirm/reject/delete discount images, sync list + modal from API. */
+  const handleDiscountReviewComplete = async (billingId) => {
+    if (!billingId) return;
+    try {
+      const data = await fetchBillings();
+      const list = Array.isArray(data) ? data : data?.billings || [];
+      const fresh = list.find((b) => String(b._id) === String(billingId));
+      if (fresh) {
+        setViewDiscountImagesModal((prev) =>
+          prev.open && String(prev.billing?._id) === String(billingId)
+            ? { ...prev, billing: fresh }
+            : prev,
+        );
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to refresh billing data");
+    }
+  };
+
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -1071,6 +1090,7 @@ export default function Billing() {
           open={viewDiscountImagesModal.open}
           onClose={closeViewDiscountImagesModal}
           billing={viewDiscountImagesModal.billing}
+          onDiscountReviewComplete={handleDiscountReviewComplete}
         />
       )}
 

@@ -364,7 +364,12 @@ function DeleteConfirmModal({ open, onClose, onConfirm, image }) {
   );
 }
 
-export default function ViewDiscountImagesModal({ billing, open, onClose }) {
+export default function ViewDiscountImagesModal({
+  billing,
+  open,
+  onClose,
+  onDiscountReviewComplete,
+}) {
   const {
     discountImages,
     fetchDiscountImagesByBilling,
@@ -431,6 +436,7 @@ export default function ViewDiscountImagesModal({ billing, open, onClose }) {
       await confirmDiscountImage(imageId, userId);
       toast.success("Discount image confirmed and applied to billing");
       await refreshData();
+      if (billing?._id) await onDiscountReviewComplete?.(billing._id);
     } catch (err) {
       toast.error(err.message || "Failed to confirm discount image");
     }
@@ -446,6 +452,7 @@ export default function ViewDiscountImagesModal({ billing, open, onClose }) {
       toast.success("Discount image rejected");
       setRejectModal({ open: false, imageId: null });
       await refreshData();
+      if (billing?._id) await onDiscountReviewComplete?.(billing._id);
     } catch (err) {
       toast.error(err.message || "Failed to reject discount image");
     }
@@ -463,6 +470,7 @@ export default function ViewDiscountImagesModal({ billing, open, onClose }) {
       toast.success("Discount image deleted successfully");
       setDeleteModal({ open: false, image: null });
       await refreshData();
+      if (billing?._id) await onDiscountReviewComplete?.(billing._id);
     } catch (err) {
       toast.error(err.message || "Failed to delete discount image");
     }
