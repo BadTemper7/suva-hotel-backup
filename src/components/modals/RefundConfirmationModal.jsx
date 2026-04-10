@@ -27,8 +27,15 @@ export default function RefundConfirmationModal({
 
   if (!open) return null;
 
-  const refundAmount = billing?.amountPaid ? billing.amountPaid * 0.5 : 0;
-  const isEligible = billing?.isRefundable === true && billing?.amountPaid > 0;
+  const paid = Number(billing?.amountPaid || 0);
+  const serverPreview = Number(billing?.refundAmount || 0);
+  const refundAmount =
+    serverPreview > 0
+      ? Math.min(serverPreview, paid)
+      : paid > 0
+        ? paid * 0.5
+        : 0;
+  const isEligible = billing?.isRefundable === true && paid > 0;
 
   const handleRefund = async () => {
     if (!confirmed) {

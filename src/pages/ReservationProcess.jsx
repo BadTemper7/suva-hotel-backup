@@ -693,6 +693,13 @@ export default function ReservationProcess() {
     return finalTotal;
   }, [payment.paymentOption, paymentOptions, finalTotal]);
 
+  /** Cash change: tender minus amount applied (amount paid is fixed to payment option). */
+  const cashChange = useMemo(() => {
+    const paid = Number(payment.amountPaid || 0);
+    const received = Number(payment.amountReceived || 0);
+    return Math.max(0, Math.round((received - paid) * 100) / 100);
+  }, [payment.amountPaid, payment.amountReceived]);
+
   // Set default payment amount when step changes to 4
   useEffect(() => {
     if (step === 4 && finalTotal > 0) {
@@ -978,6 +985,12 @@ export default function ReservationProcess() {
 
     if (payment.amountPaid < 0) {
       errors.amountPaid = "Amount paid cannot be negative.";
+    }
+    if (payment.amountReceived < 0) {
+      errors.amountReceived = "Amount received cannot be negative.";
+    } else if (payment.amountReceived < payment.amountPaid) {
+      errors.amountReceived =
+        "Amount received cannot be less than amount paid (amount due for this payment).";
     }
 
     if (requiresReceipt) {
@@ -2746,7 +2759,6 @@ export default function ReservationProcess() {
                   )}
                   <FieldError text={errors.seniorPwd} className="sm:col-span-2" />
 
-                  {/* Amount Paid */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Amount Paid *
@@ -2756,28 +2768,16 @@ export default function ReservationProcess() {
                       min="0"
                       step="0.01"
                       value={payment.amountPaid}
-                      disabled={true}
-                      onChange={(e) => {
-                        const value = Number(e.target.value);
-                        setPayment((p) => ({
-                          ...p,
-                          amountPaid: value,
-                          amountReceived:
-                            p.amountReceived < value ? value : p.amountReceived,
-                        }));
-                        setFieldError("amountPaid", "");
-                      }}
+                      disabled
                       className={`
       mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-      focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
-      transition-all duration-200 bg-gray-100 cursor-not-allowed
+      transition-all duration-200 bg-gray-100 text-gray-700 cursor-not-allowed
       ${errors.amountPaid ? "border-red-300 bg-red-50" : "border-gray-200"}
     `}
                     />
                     <FieldError text={errors.amountPaid} />
                   </div>
 
-                  {/* Amount Received */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
                       Amount Received *
@@ -2787,10 +2787,15 @@ export default function ReservationProcess() {
                       min="0"
                       step="0.01"
                       value={payment.amountReceived}
-                      disabled={true}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        setPayment((p) => ({ ...p, amountReceived: value }));
+                        setFieldError("amountReceived", "");
+                      }}
                       className={`
                         mt-1 w-full h-11 rounded-xl border px-4 text-sm outline-none 
-                        transition-all duration-200 bg-gray-100 text-gray-700 cursor-not-allowed
+                        focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc]
+                        transition-all duration-200 bg-white text-gray-900
                         ${
                           errors.amountReceived
                             ? "border-red-300 bg-red-50"
@@ -2799,6 +2804,27 @@ export default function ReservationProcess() {
                       `}
                     />
                     <FieldError text={errors.amountReceived} />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Change
+                    </label>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Amount received minus amount paid.
+                    </p>
+                    <div
+                      className={`
+                        mt-1 w-full h-11 rounded-xl border px-4 text-sm flex items-center font-semibold tabular-nums
+                        ${
+                          cashChange > 0
+                            ? "border-[#00af00]/30 bg-[#00af00]/5 text-[#00af00]"
+                            : "border-gray-200 bg-gray-50 text-gray-700"
+                        }
+                      `}
+                    >
+                      {formatMoney(cashChange)}
+                    </div>
                   </div>
                 </div>
 
@@ -3262,6 +3288,14 @@ export default function ReservationProcess() {
                           <span className="text-gray-500">Amount Received</span>
                           <span className="font-medium text-gray-900">
                             {formatMoney(payment.amountReceived)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Change</span>
+                          <span
+                            className={`font-semibold tabular-nums ${cashChange > 0 ? "text-[#00af00]" : "text-gray-900"}`}
+                          >
+                            {formatMoney(cashChange)}
                           </span>
                         </div>
                         <div className="flex justify-between text-red-600">

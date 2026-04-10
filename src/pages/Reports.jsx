@@ -1293,7 +1293,16 @@ const Reports = () => {
                       Refund Amount
                     </th>
                     <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                      Paid after refund
+                    </th>
+                    <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                      Balance
+                    </th>
+                    <th className="text-left font-semibold text-gray-700 px-6 py-4">
                       Refunded At
+                    </th>
+                    <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                      Reason
                     </th>
                   </tr>
                 </thead>
@@ -1331,11 +1340,26 @@ const Reports = () => {
                           {formatCurrency(refund.refundAmount)}
                         </p>
                       </td>
+                      <td className="px-6 py-4">
+                        <p className="text-gray-700">
+                          {formatCurrency(
+                            refund.amountPaidAfterRefund ?? 0,
+                          )}
+                        </p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <p className="text-gray-700">
+                          {formatCurrency(refund.balanceAfterRefund ?? 0)}
+                        </p>
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {format(
                           new Date(refund.refundedAt),
                           "MMM dd, yyyy HH:mm",
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate">
+                        {refund.refundReason || "—"}
                       </td>
                     </tr>
                   ))}

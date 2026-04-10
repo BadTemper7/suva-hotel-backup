@@ -189,12 +189,7 @@ export const useReceiptStore = create((set, get) => ({
   },
 
   // Update receipt status
-  updateReceiptStatus: async (
-    receiptId,
-    status,
-    reservationId,
-    reason = "",
-  ) => {
+  updateReceiptStatus: async (receiptId, status, reason = "") => {
     set({ loading: true, error: null });
     try {
       const headers = get().getAuthHeaders();
@@ -204,7 +199,7 @@ export const useReceiptStore = create((set, get) => ({
           "Content-Type": "application/json",
           ...headers,
         },
-        body: JSON.stringify({ status, reservationId, reason }),
+        body: JSON.stringify({ status, reason }),
       });
 
       const data = await res.json();
@@ -217,31 +212,8 @@ export const useReceiptStore = create((set, get) => ({
         await get().recalculateBilling(billingId);
       }
 
-      if (status === "confirmed" && reservationId) {
-        try {
-          const reservationRes = await fetch(
-            `${API}/reservations/${reservationId}/status`,
-            {
-              method: "PATCH",
-              headers: {
-                "Content-Type": "application/json",
-                ...headers,
-              },
-              body: JSON.stringify({ status: "confirmed" }),
-            },
-          );
-
-          const reservationData = await reservationRes.json();
-          if (reservationRes.ok) {
-            const reservation =
-              reservationData.reservation ||
-              reservationData.data ||
-              reservationData;
-            set({ lastUpdatedReservation: reservation });
-          }
-        } catch (reservationErr) {
-          console.error("Error updating reservation status:", reservationErr);
-        }
+      if (status === "confirmed" && data.updatedReservation) {
+        set({ lastUpdatedReservation: data.updatedReservation });
       }
 
       set((state) => ({
@@ -253,7 +225,7 @@ export const useReceiptStore = create((set, get) => ({
 
       return {
         ...data,
-        reservationUpdated: status === "confirmed" && !!reservationId,
+        reservationUpdated: !!data.reservationUpdated,
       };
     } catch (err) {
       set({ error: err.message, loading: false });
