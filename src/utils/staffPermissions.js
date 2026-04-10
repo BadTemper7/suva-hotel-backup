@@ -81,6 +81,11 @@ export function canAccessPath(user, pathname) {
   if (p === "/front-desk" || p.startsWith("/front-desk/")) {
     return canViewFeature(user, "frontDesk");
   }
+  // Reservation creation lives outside `/reservations/*`.
+  // Keep it restricted to receptionist(s) who can manage reservations/front desk.
+  if (p === "/reservation-process" || p.startsWith("/reservation-process/")) {
+    return canManageReservationsOrFrontDesk(user);
+  }
   if (p.startsWith("/reservations")) {
     return canViewReservationsOrFrontDesk(user);
   }
