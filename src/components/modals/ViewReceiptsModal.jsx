@@ -360,12 +360,7 @@ function ViewReceiptsModal({ billing, open, onClose }) {
 
   const handleStatusUpdate = async (receiptId, newStatus, reason = "") => {
     try {
-      await updateReceiptStatus(
-        receiptId,
-        newStatus,
-        billing.reservationId?._id,
-        reason,
-      );
+      await updateReceiptStatus(receiptId, newStatus, reason);
       toast.success(`Receipt ${newStatus} successfully`);
       setSelectedReceipts((prev) => prev.filter((id) => id !== receiptId));
       await refreshBillingData();

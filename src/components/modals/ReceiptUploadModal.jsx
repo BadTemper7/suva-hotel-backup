@@ -46,13 +46,23 @@ export default function ReceiptUploadModal({
     }
   }, [open, fetchPaymentTypes]);
 
-  // Initialize with billing data
+  // Initialize: amount paid = amount applied (remaining balance); received defaults same — edit received for change
   useEffect(() => {
     if (billing) {
+      const remaining = Math.max(
+        0,
+        Number(
+          billing.balance != null && !Number.isNaN(Number(billing.balance))
+            ? billing.balance
+            : (billing.totalAmount || 0) - (billing.amountPaid || 0),
+        ),
+      );
+      const s = remaining > 0 ? String(remaining) : "";
       setFormData((prev) => ({
         ...prev,
         billingId: billing._id,
-        amountPaid: billing.totalAmount - billing.amountPaid || "",
+        amountPaid: s,
+        amountReceived: s,
       }));
     }
   }, [billing]);
@@ -300,7 +310,7 @@ export default function ReceiptUploadModal({
           )}
 
 
-          {/* Amount Paid */}
+          {/* Amount paid = applied to bill (remaining); amount received = tender (editable for change) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Amount Paid (PHP) *
@@ -313,20 +323,16 @@ export default function ReceiptUploadModal({
                 type="number"
                 step="0.01"
                 min="0"
-                max={billing?.totalAmount - billing?.amountPaid || 1000000}
                 value={formData.amountPaid}
-                onChange={(e) =>
-                  setFormData({ ...formData, amountPaid: e.target.value })
-                }
-                className="w-full rounded-xl border border-gray-200 bg-white pl-8 pr-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-colors duration-200"
+                readOnly
+                className="w-full rounded-xl border border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed pl-8 pr-3 py-2 text-sm outline-none transition-colors duration-200"
                 placeholder="0.00"
                 required
                 disabled={loading}
               />
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Remaining balance: ₱
-              {(billing?.totalAmount - billing?.amountPaid || 0).toFixed(2)}
+              Remaining balance for this billing (amount applied to the receipt).
             </p>
             {errors.amountPaid && (
               <p className="text-red-500 text-xs mt-1">{errors.amountPaid}</p>

@@ -222,8 +222,8 @@ function BillingCard({
           View Receipt
         </button>
 
-        {/* Refund Button - Only show for eligible billings (not refunded, not paid, has payment) */}
-        {!isRefunded && !isPaid && !isFree && billing.amountPaid > 0 && canManage && (
+        {/* Refund: same rule as table — server isRefundable (partial or paid with money on file) */}
+        {billing.isRefundable && !isRefunded && !isFree && canManage && (
           <button
             type="button"
             onClick={() => onRefund(billing)}
