@@ -12,12 +12,14 @@ import {
   FiFilter,
   FiHome,
   FiSun,
+  FiRefreshCw,
 } from "react-icons/fi";
 
 import Loader from "../components/layout/Loader.jsx";
 import RoomFormModal from "../components/modals/RoomFormModal.jsx";
 import CottageFormModal from "../components/modals/CottageFormModal.jsx";
 import ImagePreviewModal from "../components/modals/ImagePreviewModal.jsx";
+import BulkStatusUpdateModal from "../components/modals/BulkStatusUpdateModal.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import { useRoomStore } from "../stores/roomStore.js";
 import { getUser } from "../app/auth.js";
@@ -238,6 +240,9 @@ export default function Rooms() {
   const deleteMultipleRooms = useRoomStore(
     (state) => state.deleteMultipleRooms,
   );
+  const bulkUpdateRoomStatus = useRoomStore(
+    (state) => state.bulkUpdateRoomStatus,
+  );
 
   const [listTab, setListTab] = useState("room");
   const [q, setQ] = useState("");
@@ -263,6 +268,7 @@ export default function Rooms() {
   });
 
   const [selectedRooms, setSelectedRooms] = useState([]);
+  const [bulkStatusModalOpen, setBulkStatusModalOpen] = useState(false);
 
   const canManageRm = canManageRooms(getUser());
 
@@ -372,6 +378,17 @@ export default function Rooms() {
     }
   };
 
+  const handleBulkStatusUpdate = async (status, maintenanceReason) => {
+    try {
+      await bulkUpdateRoomStatus(selectedRooms, status, maintenanceReason);
+      toast.success(`${selectedRooms.length} item(s) updated successfully`);
+      setSelectedRooms([]);
+      setBulkStatusModalOpen(false);
+    } catch (err) {
+      toast.error(err.message || "Failed to update selected items");
+    }
+  };
+
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
       style: "currency",
@@ -445,11 +462,31 @@ export default function Rooms() {
           <div className="flex items-center gap-3">
             {canManageRm && selectedRooms.length > 0 && (
               <button
+                onClick={() => setBulkStatusModalOpen(true)}
+                disabled={loading}
+                className="
+                  h-11 px-5 rounded-xl
+                  border border-[#0c2bfc]/30
+                  bg-white text-[#0c2bfc]
+                  hover:bg-[#0c2bfc]/5
+                  text-sm font-medium inline-flex items-center gap-2
+                  transition-all duration-200
+                  hover:shadow-md hover:-translate-y-0.5
+                  active:translate-y-0
+                  disabled:opacity-70 disabled:cursor-not-allowed
+                "
+              >
+                <FiRefreshCw className="w-4 h-4" />
+                Update status ({selectedRooms.length})
+              </button>
+            )}
+            {canManageRm && selectedRooms.length > 0 && (
+              <button
                 onClick={handleDeleteSelected}
                 disabled={loading}
                 className="
-                  h-11 px-5 rounded-xl 
-                  bg-[#0c2bfc] 
+                  h-11 px-5 rounded-xl
+                  bg-[#0c2bfc]
                   hover:bg-[#0a24d6]
                   text-white text-sm font-medium inline-flex items-center gap-2
                   transition-all duration-200
@@ -937,6 +974,14 @@ export default function Rooms() {
               : "Images"
           }
           onClose={closePreview}
+        />
+
+        {/* Bulk status update modal */}
+        <BulkStatusUpdateModal
+          open={bulkStatusModalOpen}
+          count={selectedRooms.length}
+          onClose={() => setBulkStatusModalOpen(false)}
+          onConfirm={handleBulkStatusUpdate}
         />
 
         {/* Loader overlay */}

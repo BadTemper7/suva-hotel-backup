@@ -170,6 +170,38 @@ export const useRoomStore = create((set, get) => ({
     }
   },
 
+  /* -------------------- BULK UPDATE ROOM STATUS -------------------- */
+  bulkUpdateRoomStatus: async (roomIds, status, maintenanceReason) => {
+    set({ loading: true, error: null });
+    try {
+      if (!Array.isArray(roomIds) || roomIds.length === 0)
+        throw new Error("roomIds array is required");
+
+      const token = getToken();
+      if (!token) throw new Error("No token found, please login");
+
+      const res = await fetch(`${API_URL}/rooms/bulk-status`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ roomIds, status, maintenanceReason }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok)
+        throw new Error(data.message || data.error || "Failed to update rooms");
+
+      await get().fetchRooms(get().lastListParams);
+      set({ loading: false });
+      return data;
+    } catch (err) {
+      set({ error: err.message || "Failed to update rooms", loading: false });
+      throw err;
+    }
+  },
+
   /* -------------------- DELETE ROOM IMAGE -------------------- */
   deleteRoomImage: async ({ roomId, publicId }) => {
     set({ loading: true, error: null });
