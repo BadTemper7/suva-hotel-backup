@@ -1,6 +1,6 @@
 // src/stores/reservationStore.js
 import { create } from "zustand";
-import { getUser } from "../app/auth.js";
+import { getUser, getToken } from "../app/auth.js";
 
 const API =
   import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
@@ -177,6 +177,30 @@ export const useReservationStore = create((set, get) => ({
     const res = await fetch(`${API}/reservations/${id}/history`);
     const data = await safeJson(res);
     return data.history || [];
+  },
+
+  // Reschedule a reservation's dates (see WT-09)
+  rescheduleReservation: async (reservationId, payload) => {
+    const token = getToken();
+    if (!token) throw new Error("No token found, please login");
+
+    const res = await fetch(`${API}/reservations`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ reservationId, ...payload }),
+    });
+    const data = await safeJson(res);
+
+    set((state) => ({
+      reservations: state.reservations.map((r) =>
+        r._id === reservationId ? { ...r, ...data.reservation } : r,
+      ),
+    }));
+
+    return data;
   },
 
   // --- DELETE FUNCTIONS ---

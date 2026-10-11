@@ -21,6 +21,7 @@ import { formatDistanceToNow } from "date-fns";
 import Loader from "../components/layout/Loader.jsx";
 import ReservationStatusModal from "../components/modals/ReservationStatusModal.jsx";
 import ReservationHistoryModal from "../components/modals/ReservationHistoryModal.jsx";
+import RescheduleModal from "../components/modals/RescheduleModal.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
 import { getUser } from "../app/auth.js";
 import {
@@ -306,6 +307,9 @@ export default function Reservations() {
   const fetchReservationHistory = useReservationStore(
     (s) => s.fetchReservationHistory,
   );
+  const rescheduleReservation = useReservationStore(
+    (s) => s.rescheduleReservation,
+  );
   const loading = useReservationStore((s) => s.loading);
   const navigate = useNavigate();
 
@@ -315,6 +319,10 @@ export default function Reservations() {
   const [dateFilter, setDateFilter] = useState("all");
   const [modal, setModal] = useState({ open: false, reservation: null });
   const [historyModal, setHistoryModal] = useState({
+    open: false,
+    reservation: null,
+  });
+  const [rescheduleModal, setRescheduleModal] = useState({
     open: false,
     reservation: null,
   });
@@ -518,6 +526,25 @@ export default function Reservations() {
       closeModal();
     } catch (err) {
       toast.error(err.message || "Failed to update reservation");
+    }
+  };
+
+  const confirmReschedule = async (payload) => {
+    const reservationId = rescheduleModal.reservation._id;
+    try {
+      const data = await rescheduleReservation(reservationId, payload);
+      toast.success("Reservation rescheduled successfully");
+      if (data.billingUpdated) {
+        toast.success(`Billing updated: ${data.billingUpdated.status}`);
+      }
+      setLatestHistoryByReservation((prev) => {
+        const next = { ...prev };
+        delete next[reservationId];
+        return next;
+      });
+      setRescheduleModal({ open: false, reservation: null });
+    } catch (err) {
+      toast.error(err.message || "Failed to reschedule reservation");
     }
   };
 
@@ -1089,6 +1116,34 @@ export default function Reservations() {
                             </button>
                           )}
 
+                          {canManageRes &&
+                            ["pending", "confirmed"].includes(
+                              normalizeStatus(r.status),
+                            ) && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setRescheduleModal({
+                                    open: true,
+                                    reservation: r,
+                                  })
+                                }
+                                className="
+                                h-10 px-4 rounded-xl
+                                border border-gray-200
+                                bg-white
+                                hover:bg-gray-50
+                                text-sm font-medium inline-flex items-center gap-2
+                                transition-all duration-200
+                                hover:shadow-md hover:-translate-y-0.5
+                                active:translate-y-0
+                                text-gray-700 hover:text-[#0c2bfc]
+                              "
+                              >
+                                <FiCalendar className="w-4 h-4" /> Reschedule
+                              </button>
+                            )}
+
                           <button
                             type="button"
                             onClick={() =>
@@ -1137,7 +1192,7 @@ export default function Reservations() {
                 {paged.length === 0 && (
                   <tr>
                     <td
-                      colSpan={canManageRes ? 9 : 8}
+                      colSpan={canManageRes ? 10 : 9}
                       className="px-6 py-16 text-center"
                     >
                       <div className="text-gray-300 mb-3">
@@ -1194,6 +1249,15 @@ export default function Reservations() {
           open={historyModal.open}
           reservation={historyModal.reservation}
           onClose={() => setHistoryModal({ open: false, reservation: null })}
+        />
+
+        <RescheduleModal
+          open={rescheduleModal.open}
+          reservation={rescheduleModal.reservation}
+          onClose={() =>
+            setRescheduleModal({ open: false, reservation: null })
+          }
+          onConfirm={confirmReschedule}
         />
 
         {/* Delete Modal */}
