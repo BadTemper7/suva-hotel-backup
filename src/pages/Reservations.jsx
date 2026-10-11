@@ -446,10 +446,24 @@ export default function Reservations() {
     }
   };
 
-  const saveStatus = async (status) => {
+  const saveStatus = async (
+    status,
+    cancelReason,
+    markBillingPaid,
+    settlementPaymentTypeId,
+  ) => {
     try {
-      await updateReservationStatus(modal.reservation._id, status);
+      const { billingUpdated } = await updateReservationStatus(
+        modal.reservation._id,
+        status,
+        cancelReason,
+        markBillingPaid,
+        settlementPaymentTypeId,
+      );
       toast.success("Reservation updated successfully");
+      if (billingUpdated) {
+        toast.success(`Billing marked ${billingUpdated.status}`);
+      }
       closeModal();
     } catch (err) {
       toast.error(err.message || "Failed to update reservation");

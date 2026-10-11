@@ -124,7 +124,13 @@ export const useReservationStore = create((set, get) => ({
   },
 
   // Update reservation status
-  updateReservationStatus: async (id, status, cancelReason = "") => {
+  updateReservationStatus: async (
+    id,
+    status,
+    cancelReason = "",
+    markBillingPaid = false,
+    settlementPaymentTypeId = "",
+  ) => {
     set({ loading: true, error: null });
     try {
       const currentUser = getUser();
@@ -135,6 +141,8 @@ export const useReservationStore = create((set, get) => ({
           status,
           ...(currentUser?._id ? { userId: currentUser._id } : {}),
           ...(cancelReason ? { cancelReason: String(cancelReason).trim() } : {}),
+          ...(markBillingPaid ? { markBillingPaid: true } : {}),
+          ...(settlementPaymentTypeId ? { settlementPaymentTypeId } : {}),
         }),
       });
 
@@ -152,7 +160,7 @@ export const useReservationStore = create((set, get) => ({
         loading: false,
       }));
 
-      return reservation;
+      return { reservation, billingUpdated: data.billingUpdated };
     } catch (err) {
       set({ loading: false, error: err.message });
       throw err;

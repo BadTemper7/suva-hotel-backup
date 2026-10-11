@@ -142,6 +142,8 @@ export default function ReservationStatusModal({
 }) {
   const [status, setStatus] = useState("pending");
   const [cancelReason, setCancelReason] = useState("");
+  const [markBillingPaid, setMarkBillingPaid] = useState(false);
+  const [settlementPaymentTypeId, setSettlementPaymentTypeId] = useState("");
 
   const [billingLoading, setBillingLoading] = useState(false);
   const [billing, setBilling] = useState(null);
@@ -161,6 +163,8 @@ export default function ReservationStatusModal({
     if (reservation) {
       setStatus(reservation.status || "pending");
       setCancelReason(String(reservation.cancelReason || ""));
+      setMarkBillingPaid(false);
+      setSettlementPaymentTypeId("");
     }
   }, [reservation]);
 
@@ -241,6 +245,21 @@ export default function ReservationStatusModal({
       return;
     }
 
+    if (
+      markBillingPaid &&
+      eligibleSettlementPaymentTypes.length > 1 &&
+      !settlementPaymentTypeId
+    ) {
+      toast.error("Select which payment type to record the settlement under.");
+      return;
+    }
+    if (markBillingPaid && eligibleSettlementPaymentTypes.length === 0) {
+      toast.error(
+        "No cash/manual payment type is configured — create one before marking billing as paid.",
+      );
+      return;
+    }
+
     const currentStatus = normalizeReservationStatus(reservation?.status);
     const nextStatus = normalizeReservationStatus(status);
     if (nextStatus === "confirmed" && currentStatus !== "confirmed") {
@@ -250,7 +269,12 @@ export default function ReservationStatusModal({
       if (!proceed) return;
     }
 
-    onSave?.(status, cancelReason.trim());
+    onSave?.(
+      status,
+      cancelReason.trim(),
+      markBillingPaid,
+      markBillingPaid ? settlementPaymentTypeId : undefined,
+    );
   };
 
   // Flatten ALL receipt images for preview (latest receipts first)
@@ -271,6 +295,26 @@ export default function ReservationStatusModal({
   }, [billing?.receipts]);
   const isComplimentary =
     Boolean(billing?.isComplimentary) || Number(billing?.totalAmount || 0) <= 0;
+
+  // Payment types that can settle a balance without needing an uploaded
+  // receipt image (e.g. "Cash") — these are the only valid choices for
+  // auto-creating a settlement receipt when marking billing as paid.
+  const eligibleSettlementPaymentTypes = useMemo(() => {
+    return (Array.isArray(paymentTypes) ? paymentTypes : []).filter(
+      (pt) => !pt?.isReceipt && pt?.isActive !== false,
+    );
+  }, [paymentTypes]);
+
+  useEffect(() => {
+    if (eligibleSettlementPaymentTypes.length === 1) {
+      setSettlementPaymentTypeId(eligibleSettlementPaymentTypes[0]._id);
+    }
+  }, [eligibleSettlementPaymentTypes]);
+
+  const canOfferMarkPaid =
+    normalizeReservationStatus(status) === "confirmed" &&
+    !!billing &&
+    !["paid", "free", "refunded", "voided"].includes(billingStatus);
 
   const paymentTypeNameById = useMemo(() => {
     return new Map(
@@ -422,6 +466,59 @@ export default function ReservationStatusModal({
                       placeholder="Please provide the reason for cancellation"
                       className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700 transition-colors duration-200"
                     />
+                  </div>
+                )}
+
+                {canOfferMarkPaid && (
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                    <label className="flex items-start gap-2 text-sm text-gray-700">
+                      <input
+                        type="checkbox"
+                        checked={markBillingPaid}
+                        onChange={(e) => setMarkBillingPaid(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/30"
+                      />
+                      <span>
+                        Mark billing as fully paid
+                        <span className="block text-xs text-gray-500 mt-0.5">
+                          Settles the remaining balance (
+                          {money(billing?.balance)}) with a cash/manual
+                          receipt so the refund option becomes available.
+                        </span>
+                      </span>
+                    </label>
+
+                    {markBillingPaid && eligibleSettlementPaymentTypes.length > 1 && (
+                      <div className="mt-2">
+                        <label className="text-xs font-medium text-gray-600">
+                          Record settlement under
+                        </label>
+                        <select
+                          value={settlementPaymentTypeId}
+                          onChange={(e) =>
+                            setSettlementPaymentTypeId(e.target.value)
+                          }
+                          className="mt-1 w-full h-9 rounded-xl border border-gray-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700"
+                        >
+                          <option value="" disabled>
+                            Select payment type
+                          </option>
+                          {eligibleSettlementPaymentTypes.map((pt) => (
+                            <option key={pt._id} value={pt._id}>
+                              {pt.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {markBillingPaid &&
+                      eligibleSettlementPaymentTypes.length === 0 && (
+                        <div className="mt-2 text-xs text-red-600">
+                          No cash/manual payment type is configured — create
+                          one in Payment Types before using this.
+                        </div>
+                      )}
                   </div>
                 )}
 
