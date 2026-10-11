@@ -117,7 +117,7 @@ export default function Maintenance() {
     return {
       total: rooms.length,
       clean: rooms.filter((room) => room.status === "clean").length,
-      toClean: rooms.filter((room) => room.status === "to_clean").length,
+      toClean: rooms.filter((room) => room.status === "inactive").length,
       maintenance: rooms.filter((room) => room.status === "maintenance").length,
       available: rooms.filter((room) => room.status === "available").length,
       occupied: rooms.filter((room) => room.status === "occupied").length,
@@ -148,7 +148,7 @@ export default function Maintenance() {
   const handleQuickStatus = (roomId, status) => {
     const statusMap = {
       clean: { status: "clean", notes: "Room cleaned" },
-      to_clean: { status: "to_clean", notes: "Marked for cleaning" },
+      inactive: { status: "inactive", notes: "Marked for cleaning" },
       maintenance: { status: "maintenance", notes: "Maintenance required" },
       available: { status: "available", notes: "Room made available" },
     };
@@ -164,7 +164,7 @@ export default function Maintenance() {
       case "clean":
       case "available":
         return "bg-[#00af00]/10 text-[#00af00]";
-      case "to_clean":
+      case "inactive":
         return "bg-[#0c2bfc]/10 text-[#0c2bfc]";
       case "maintenance":
         return "bg-red-100 text-red-700";
@@ -179,7 +179,7 @@ export default function Maintenance() {
     switch (status) {
       case "clean":
         return <FiCheckCircle className="text-[#00af00]" />;
-      case "to_clean":
+      case "inactive":
         return <FiClock className="text-[#0c2bfc]" />;
       case "maintenance":
         return <FiTool className="text-red-500" />;
@@ -376,11 +376,11 @@ export default function Maintenance() {
           </div>
         </div>
 
-        {/* To Clean */}
+        {/* Inactive */}
         <div className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-all duration-300 hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-gray-600">To Clean</p>
+              <p className="text-xs font-medium text-gray-600">Inactive</p>
               <p className="text-2xl font-bold text-[#0c2bfc] mt-1">
                 {stats.toClean}
               </p>
@@ -644,11 +644,11 @@ export default function Maintenance() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleQuickStatus(room._id, "to_clean")}
+                        onClick={() => handleQuickStatus(room._id, "inactive")}
                         disabled={updatingRoom === room._id}
                         className="
-                          h-9 px-3 rounded-xl 
-                          border border-[#0c2bfc]/20 
+                          h-9 px-3 rounded-xl
+                          border border-[#0c2bfc]/20
                           bg-white
                           hover:bg-[#0c2bfc]/5
                           text-sm font-medium inline-flex items-center gap-1
@@ -660,7 +660,7 @@ export default function Maintenance() {
                         "
                       >
                         <FiClock className="w-3.5 h-3.5" />
-                        To Clean
+                        Inactive
                       </button>
                       <button
                         type="button"
@@ -801,12 +801,12 @@ export default function Maintenance() {
               </button>
               <button
                 type="button"
-                onClick={() => handleQuickStatus(room._id, "to_clean")}
+                onClick={() => handleQuickStatus(room._id, "inactive")}
                 disabled={updatingRoom === room._id}
                 className="flex-1 h-9 rounded-xl bg-white border border-[#0c2bfc]/20 text-[#0c2bfc] text-xs font-medium inline-flex items-center justify-center gap-1 disabled:opacity-50 hover:bg-[#0c2bfc]/5 hover:shadow-sm transition-all"
               >
                 <FiClock size={12} />
-                To Clean
+                Inactive
               </button>
               <button
                 type="button"

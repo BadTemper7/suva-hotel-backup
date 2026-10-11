@@ -42,8 +42,8 @@ const statusOptions = [
     ringColor: "ring-emerald-200",
   },
   {
-    value: "to-clean",
-    label: "To clean",
+    value: "inactive",
+    label: "Inactive",
     icon: FiXCircle,
     color: "text-amber-800",
     bgColor: "bg-amber-50",

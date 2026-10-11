@@ -29,7 +29,7 @@ const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
   maintenance: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
   clean: "bg-emerald-50 text-emerald-800",
-  "to-clean": "bg-amber-50 text-amber-900",
+  inactive: "bg-amber-50 text-amber-900",
 };
 
 function normalizeStatus(value) {
@@ -39,7 +39,7 @@ function normalizeStatus(value) {
   if (raw === "maintenance" || raw === "under maintenance")
     return "maintenance";
   if (raw === "clean") return "clean";
-  if (raw === "to-clean" || raw === "to clean") return "to-clean";
+  if (raw === "inactive") return "inactive";
   return "active";
 }
 
@@ -49,7 +49,7 @@ function StatusPill({ value }) {
     active: "Active",
     maintenance: "Under maintenance",
     clean: "Clean",
-    "to-clean": "To clean",
+    inactive: "Inactive",
   };
 
   return (
@@ -606,7 +606,7 @@ export default function Rooms() {
                 <option value="active">Active</option>
                 <option value="maintenance">Under maintenance</option>
                 <option value="clean">Clean</option>
-                <option value="to-clean">To clean</option>
+                <option value="inactive">Inactive</option>
               </select>
             </div>
           </div>
