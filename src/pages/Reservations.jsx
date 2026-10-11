@@ -16,9 +16,11 @@ import {
   FiArrowRight,
 } from "react-icons/fi";
 import toast, { Toaster } from "react-hot-toast";
+import { formatDistanceToNow } from "date-fns";
 
 import Loader from "../components/layout/Loader.jsx";
 import ReservationStatusModal from "../components/modals/ReservationStatusModal.jsx";
+import ReservationHistoryModal from "../components/modals/ReservationHistoryModal.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
 import { getUser } from "../app/auth.js";
 import {
@@ -301,6 +303,9 @@ export default function Reservations() {
   const deleteMultipleReservations = useReservationStore(
     (s) => s.deleteMultipleReservations,
   );
+  const fetchReservationHistory = useReservationStore(
+    (s) => s.fetchReservationHistory,
+  );
   const loading = useReservationStore((s) => s.loading);
   const navigate = useNavigate();
 
@@ -309,6 +314,12 @@ export default function Reservations() {
   const [complimentaryFilter, setComplimentaryFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("all");
   const [modal, setModal] = useState({ open: false, reservation: null });
+  const [historyModal, setHistoryModal] = useState({
+    open: false,
+    reservation: null,
+  });
+  const [latestHistoryByReservation, setLatestHistoryByReservation] =
+    useState({});
   const [deleteModal, setDeleteModal] = useState({
     open: false,
     reservation: null,
@@ -385,6 +396,41 @@ export default function Reservations() {
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+
+  // Latest "last modified by" line for the visible page only, not every
+  // reservation - keeps this to one small request per visible row instead
+  // of fetching full history for reservations the admin isn't even looking
+  // at. See WT-04.
+  useEffect(() => {
+    let cancelled = false;
+    const idsToLoad = paged
+      .map((r) => r._id)
+      .filter((id) => !(id in latestHistoryByReservation));
+
+    if (idsToLoad.length === 0) return;
+
+    Promise.all(
+      idsToLoad.map(async (id) => {
+        try {
+          const entries = await fetchReservationHistory(id);
+          return [id, entries[0] || null];
+        } catch {
+          return [id, null];
+        }
+      }),
+    ).then((results) => {
+      if (cancelled) return;
+      setLatestHistoryByReservation((prev) => ({
+        ...prev,
+        ...Object.fromEntries(results),
+      }));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paged]);
 
   useEffect(() => {
     const visible = new Set(filtered.map((r) => r._id));
@@ -464,6 +510,11 @@ export default function Reservations() {
       if (billingUpdated) {
         toast.success(`Billing marked ${billingUpdated.status}`);
       }
+      setLatestHistoryByReservation((prev) => {
+        const next = { ...prev };
+        delete next[modal.reservation._id];
+        return next;
+      });
       closeModal();
     } catch (err) {
       toast.error(err.message || "Failed to update reservation");
@@ -880,6 +931,9 @@ export default function Reservations() {
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Assisted By
                   </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Last Modified By
+                  </th>
                   <th className="text-right font-semibold text-gray-700 px-6 py-4">
                     Actions
                   </th>
@@ -978,6 +1032,39 @@ export default function Reservations() {
 
                       <td className="px-6 py-4">
                         <div className="text-gray-700">{assistedByName}</div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setHistoryModal({ open: true, reservation: r })
+                          }
+                          className="text-left hover:underline"
+                        >
+                          {latestHistoryByReservation[r._id] ? (
+                            <>
+                              <div className="font-medium text-gray-900">
+                                {latestHistoryByReservation[r._id].actorLabel ||
+                                  "System"}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {formatDistanceToNow(
+                                  new Date(
+                                    latestHistoryByReservation[r._id].createdAt,
+                                  ),
+                                  { addSuffix: true },
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">
+                              {r._id in latestHistoryByReservation
+                                ? "No history"
+                                : "Loading…"}
+                            </span>
+                          )}
+                        </button>
                       </td>
 
                       <td className="px-6 py-4 text-right">
@@ -1102,6 +1189,12 @@ export default function Reservations() {
             onSave={saveStatus}
           />
         )}
+
+        <ReservationHistoryModal
+          open={historyModal.open}
+          reservation={historyModal.reservation}
+          onClose={() => setHistoryModal({ open: false, reservation: null })}
+        />
 
         {/* Delete Modal */}
         {deleteModal.open && (

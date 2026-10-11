@@ -172,6 +172,13 @@ export const useReservationStore = create((set, get) => ({
     return get().updateReservationStatus(id, "cancelled");
   },
 
+  // Fetch the audit trail for a single reservation (see WT-04)
+  fetchReservationHistory: async (id) => {
+    const res = await fetch(`${API}/reservations/${id}/history`);
+    const data = await safeJson(res);
+    return data.history || [];
+  },
+
   // --- DELETE FUNCTIONS ---
 
   // Delete single reservation
