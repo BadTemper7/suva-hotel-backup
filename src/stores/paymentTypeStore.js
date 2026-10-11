@@ -3,6 +3,30 @@ import { create } from "zustand";
 const API =
   import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
 
+// Only switch to multipart when a file or an explicit removal is involved —
+// keeps plain field-only updates (e.g. toggling isActive) as simple JSON.
+function buildBody(payload) {
+  const hasFile = payload.qrCode instanceof File;
+  const hasRemoval = payload.removeQrCode === true;
+
+  if (!hasFile && !hasRemoval) {
+    return {
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    };
+  }
+
+  const fd = new FormData();
+  Object.entries(payload).forEach(([key, value]) => {
+    if (key === "qrCode") {
+      if (hasFile) fd.append("qrCode", value);
+    } else if (value !== undefined && value !== null) {
+      fd.append(key, value);
+    }
+  });
+  return { headers: {}, body: fd };
+}
+
 const usePaymentTypeStore = create((set) => ({
   paymentTypes: [],
   loading: false,
@@ -31,10 +55,11 @@ const usePaymentTypeStore = create((set) => ({
   createPaymentType: async (payload) => {
     set({ loading: true, error: null });
     try {
+      const { headers, body } = buildBody(payload);
       const res = await fetch(`${API}/payment-types`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers,
+        body,
       });
 
       const data = await res.json();
@@ -59,10 +84,11 @@ const usePaymentTypeStore = create((set) => ({
   updatePaymentType: async (id, payload) => {
     set({ loading: true, error: null });
     try {
+      const { headers, body } = buildBody(payload);
       const res = await fetch(`${API}/payment-types/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers,
+        body,
       });
 
       const data = await res.json();

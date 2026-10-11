@@ -110,6 +110,7 @@ export default function PaymentTypes() {
           name: payload.name,
           isReceipt: payload.isReceipt,
           isActive: true,
+          ...(payload.qrCode ? { qrCode: payload.qrCode } : {}),
         });
         toast.success("Payment type created successfully!");
       } else {
@@ -117,6 +118,8 @@ export default function PaymentTypes() {
           name: payload.name,
           isReceipt: payload.isReceipt,
           isActive: payload.isActive,
+          ...(payload.qrCode ? { qrCode: payload.qrCode } : {}),
+          ...(payload.removeQrCode ? { removeQrCode: true } : {}),
         });
         toast.success("Payment type updated successfully!");
       }

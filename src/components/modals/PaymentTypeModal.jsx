@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FiX } from "react-icons/fi";
+import { FiX, FiUploadCloud } from "react-icons/fi";
 import Loader from "../layout/Loader";
 
 export default function PaymentTypeModal({
@@ -14,8 +14,12 @@ export default function PaymentTypeModal({
   const [name, setName] = useState("");
   const [isReceipt, setIsReceipt] = useState(false);
   const [isActive, setIsActive] = useState(true);
+  const [qrCodeFile, setQrCodeFile] = useState(null);
+  const [qrCodePreview, setQrCodePreview] = useState(null);
+  const [removeQrCode, setRemoveQrCode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
@@ -24,14 +28,32 @@ export default function PaymentTypeModal({
       setName(paymentType.name ?? "");
       setIsReceipt(paymentType.isReceipt ?? false);
       setIsActive(paymentType.isActive ?? true);
+      setQrCodePreview(paymentType.qrCodeUrl ?? null);
     } else {
       setName("");
       setIsReceipt(false);
       setIsActive(true);
+      setQrCodePreview(null);
     }
 
+    setQrCodeFile(null);
+    setRemoveQrCode(false);
     setError("");
   }, [open, mode, paymentType]);
+
+  function handleQrCodeSelect(file) {
+    if (!file) return;
+    setQrCodeFile(file);
+    setRemoveQrCode(false);
+    setQrCodePreview(URL.createObjectURL(file));
+  }
+
+  function handleRemoveQrCode() {
+    setQrCodeFile(null);
+    setQrCodePreview(null);
+    setRemoveQrCode(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -55,6 +77,8 @@ export default function PaymentTypeModal({
         name: String(name).trim(),
         isReceipt,
         isActive,
+        ...(qrCodeFile ? { qrCode: qrCodeFile } : {}),
+        ...(removeQrCode ? { removeQrCode: true } : {}),
       });
     } catch (err) {
       setError(err.message || "Something went wrong");
@@ -136,6 +160,50 @@ export default function PaymentTypeModal({
                     required
                   />
                 </label>
+
+                <div>
+                  <div className="text-xs font-medium text-gray-600 mb-1">
+                    QR Code (optional)
+                  </div>
+                  <div className="text-xs text-gray-500 mb-2">
+                    Shown to guests when they pick this payment method during
+                    checkout.
+                  </div>
+                  {qrCodePreview ? (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={qrCodePreview}
+                        alt="QR code preview"
+                        className="h-20 w-20 rounded-xl object-cover border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveQrCode}
+                        disabled={loading}
+                        className="h-9 px-3 rounded-xl border border-gray-200 hover:bg-gray-50 text-sm text-gray-700 transition-all duration-200"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="border-2 border-dashed rounded-xl px-4 py-5 flex flex-col items-center justify-center text-center cursor-pointer border-gray-200 hover:border-[#0c2bfc]/40 transition-colors"
+                    >
+                      <FiUploadCloud className="text-2xl text-gray-400 mb-1" />
+                      <p className="text-xs text-gray-600">
+                        Click to upload a QR code image
+                      </p>
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleQrCodeSelect(e.target.files?.[0])}
+                    className="hidden"
+                  />
+                </div>
 
                 <div className="flex items-center justify-between space-x-4">
                   <label className="flex items-center gap-2 cursor-pointer">
