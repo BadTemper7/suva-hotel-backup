@@ -311,10 +311,21 @@ export default function ReservationStatusModal({
     }
   }, [eligibleSettlementPaymentTypes]);
 
+  // What's actually due right now under this reservation's payment option —
+  // the full balance for a "full" option, or just the downpayment portion
+  // for a "partial" one. Settling this (not the whole balance) is what
+  // confirming should do; the rest stays outstanding until later.
+  const dueNowRemaining = Math.max(
+    0,
+    (billing?.amountDueNow ?? billing?.totalAmount ?? 0) -
+      (billing?.amountPaid ?? 0),
+  );
+
   const canOfferMarkPaid =
     normalizeReservationStatus(status) === "confirmed" &&
     !!billing &&
-    !["paid", "free", "refunded", "voided"].includes(billingStatus);
+    !["paid", "free", "refunded", "voided"].includes(billingStatus) &&
+    dueNowRemaining > 0;
 
   const paymentTypeNameById = useMemo(() => {
     return new Map(
@@ -479,11 +490,14 @@ export default function ReservationStatusModal({
                         className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#0c2bfc] focus:ring-[#0c2bfc]/30"
                       />
                       <span>
-                        Mark billing as fully paid
+                        Mark billing as paid
                         <span className="block text-xs text-gray-500 mt-0.5">
-                          Settles the remaining balance (
-                          {money(billing?.balance)}) with a cash/manual
-                          receipt so the refund option becomes available.
+                          Settles the amount due now ({money(dueNowRemaining)}
+                          ) with a cash/manual receipt so the refund option
+                          becomes available. For a downpayment/partial
+                          payment option, this only covers the downpayment —
+                          the rest of the balance stays outstanding and
+                          billing status stays "Partial".
                         </span>
                       </span>
                     </label>
