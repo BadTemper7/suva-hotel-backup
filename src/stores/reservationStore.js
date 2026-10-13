@@ -709,6 +709,9 @@ export const useReservationStore = create((set, get) => ({
         paymentOption: reservationData.paymentOption,
         userId: user?._id || "69624f18a99b94c2c1be2f62",
         discountId: reservationData.discountId || null,
+        // Lets the server reject inactive/maintenance rooms before creating
+        // the reservation, instead of leaving it with no rooms attached.
+        roomIds: rooms.map((room) => room.roomId),
       };
 
       const resReservation = await fetch(`${API}/reservations`, {
@@ -746,11 +749,12 @@ export const useReservationStore = create((set, get) => ({
           })),
         };
 
-        await fetch(`${API}/reservation-rooms`, {
+        const resRooms = await fetch(`${API}/reservation-rooms`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(roomsPayload),
         });
+        await safeJson(resRooms);
       }
 
       // Step 4: Generate billing
