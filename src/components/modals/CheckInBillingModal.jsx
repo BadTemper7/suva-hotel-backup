@@ -7,6 +7,7 @@ import {
   isBillingFullyPaid,
 } from "../../utils/billingPayment.js";
 import ReceiptUploadModal from "./ReceiptUploadModal.jsx";
+import StayTypePill from "../ui/StayTypePill.jsx";
 
 export default function CheckInBillingModal({
   open,
@@ -79,9 +80,10 @@ export default function CheckInBillingModal({
           </div>
 
           <div className="px-5 py-4 bg-gray-50 text-sm text-gray-700 space-y-1">
-            <div>
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-gray-500">Reservation</span>{" "}
               <span className="font-semibold text-gray-900">#{resNum}</span>
+              <StayTypePill reservation={reservation} />
             </div>
             <div>
               <span className="text-gray-500">Guest</span>{" "}

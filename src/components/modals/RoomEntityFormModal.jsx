@@ -62,6 +62,9 @@ export default function RoomEntityFormModal({ open, mode, room, onClose, kind })
   const [roomType, setRoomType] = useState("");
   const [status, setStatus] = useState("active");
   const [rate, setRate] = useState("");
+  const [hourlyRate3, setHourlyRate3] = useState("");
+  const [hourlyRate6, setHourlyRate6] = useState("");
+  const [hourlyRate12, setHourlyRate12] = useState("");
   const [capacity, setCapacity] = useState("");
   const [previews, setPreviews] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
@@ -89,6 +92,9 @@ export default function RoomEntityFormModal({ open, mode, room, onClose, kind })
       setRoomType(room.roomType?._id ?? room.roomType ?? "");
       setStatus(room.status ?? "active");
       setRate(room.rate ?? "");
+      setHourlyRate3(room.hourlyRates?.hours3 ?? "");
+      setHourlyRate6(room.hourlyRates?.hours6 ?? "");
+      setHourlyRate12(room.hourlyRates?.hours12 ?? "");
       setCapacity(room.capacity ?? "");
       setDescription(room.description ?? "");
       setMaintenanceReason(room.maintenanceReason ?? "");
@@ -110,6 +116,9 @@ export default function RoomEntityFormModal({ open, mode, room, onClose, kind })
       setRoomType("");
       setStatus("active");
       setRate("");
+      setHourlyRate3("");
+      setHourlyRate6("");
+      setHourlyRate12("");
       setCapacity("");
       setDescription("");
       setMaintenanceReason("");
@@ -208,6 +217,9 @@ export default function RoomEntityFormModal({ open, mode, room, onClose, kind })
       payload.append("roomNumber", roomNumber.trim());
       payload.append("status", status);
       payload.append("rate", rate);
+      payload.append("hourlyRate3", hourlyRate3 === "" ? "0" : hourlyRate3);
+      payload.append("hourlyRate6", hourlyRate6 === "" ? "0" : hourlyRate6);
+      payload.append("hourlyRate12", hourlyRate12 === "" ? "0" : hourlyRate12);
       payload.append("capacity", capacity);
       payload.append("category", kind);
       payload.append("description", descTrim);
@@ -417,7 +429,7 @@ export default function RoomEntityFormModal({ open, mode, room, onClose, kind })
 
                   <div className={isRoom ? "" : "sm:col-span-2"}>
                     <label className="text-xs font-medium text-gray-600 mb-1 block">
-                      Rate (PHP) *
+                      Overnight rate (PHP) *
                     </label>
                     <input
                       type="number"
@@ -445,6 +457,34 @@ export default function RoomEntityFormModal({ open, mode, room, onClose, kind })
                       step="1"
                       required
                     />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-medium text-gray-600 mb-2">
+                    Hourly packages (optional — 0 means not offered)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "3 hours", value: hourlyRate3, set: setHourlyRate3 },
+                      { label: "6 hours", value: hourlyRate6, set: setHourlyRate6 },
+                      { label: "12 hours", value: hourlyRate12, set: setHourlyRate12 },
+                    ].map((field) => (
+                      <div key={field.label}>
+                        <label className="text-xs text-gray-500 mb-1 block">
+                          {field.label}
+                        </label>
+                        <input
+                          type="number"
+                          value={field.value}
+                          onChange={(e) => field.set(e.target.value)}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] text-gray-700"
+                          placeholder="0"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
 

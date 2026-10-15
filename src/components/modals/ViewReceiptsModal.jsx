@@ -27,6 +27,7 @@ import { useReceiptStore } from "../../stores/receiptStore";
 import { useBillingStore } from "../../stores/billingStore";
 import DeleteModal from "./DeleteModal";
 import StatusUpdateModal from "./StatusUpdateModal";
+import StayTypePill from "../ui/StayTypePill.jsx";
 
 // Money formatter function
 const money = (n) =>
@@ -706,6 +707,7 @@ function ViewReceiptsModal({ billing, open, onClose }) {
                               className="h-5 w-5 rounded-lg border-gray-300 text-[#0c2bfc] focus:ring-2 focus:ring-[#0c2bfc]/20"
                             />
                             <ReceiptStatusBadge status={receipt.status} />
+                            <StayTypePill reservation={billing.reservationId} />
                           </div>
                           <div className="flex items-center gap-2">
                             <ReceiptActionsMenu

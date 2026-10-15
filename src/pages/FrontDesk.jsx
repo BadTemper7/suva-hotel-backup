@@ -15,7 +15,7 @@ import toast, { Toaster } from "react-hot-toast";
 import { Helmet } from "react-helmet";
 
 import Loader from "../components/layout/Loader.jsx";
-import CheckInBillingModal from "../components/modals/CheckInBillingModal.jsx";
+import StayTimer from "../components/StayTimer.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
 import { useBillingStore } from "../stores/billingStore.js";
 import { isBillingFullyPaid } from "../utils/billingPayment.js";
@@ -29,6 +29,8 @@ import {
 } from "../utils/frontDesk.js";
 import { getUser } from "../app/auth.js";
 import { canManageFeature } from "../utils/staffPermissions.js";
+import StayTypePill from "../components/ui/StayTypePill.jsx";
+import CheckInBillingModal from "../components/modals/CheckInBillingModal.jsx";
 
 const STANDARD_CHECKOUT_HOUR = 12;
 const STANDARD_CHECKOUT_MINUTE = 0;
@@ -284,7 +286,9 @@ export default function FrontDesk() {
     setCheckoutLoadingId(reservation._id);
     try {
       await updateReservationStatus(reservation._id, "checked_out");
-      toast.success(`Checked out #${reservation.reservationNumber}`);
+      toast.success(
+        `Checked out #${reservation.reservationNumber}. Rooms set to To clean.`,
+      );
     } catch (err) {
       toast.error(err.message || "Check-out failed");
     } finally {
@@ -442,7 +446,7 @@ export default function FrontDesk() {
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-          {loading && reservations.length === 0 ? (
+          {loading && (reservations || []).length === 0 ? (
             <div className="py-20 flex justify-center">
               <Loader size={48} variant="primary" />
             </div>
@@ -465,7 +469,7 @@ export default function FrontDesk() {
                     </th>
                     {showActualCheckIn && (
                       <th className="text-left font-semibold text-gray-700 px-4 py-3">
-                        Checked in at
+                        {tab === "inHouse" ? "Stay time" : "Checked in at"}
                       </th>
                     )}
                     {showActualCheckOut && (
@@ -489,8 +493,13 @@ export default function FrontDesk() {
                         key={r._id}
                         className="border-b border-gray-100 hover:bg-gray-50/80"
                       >
-                        <td className="px-4 py-3 font-semibold text-gray-900">
-                          #{r.reservationNumber}
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-gray-900">
+                            #{r.reservationNumber}
+                          </div>
+                          <div className="mt-1">
+                            <StayTypePill reservation={r} />
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 text-gray-900 font-medium">
@@ -527,7 +536,16 @@ export default function FrontDesk() {
                         </td>
                         {showActualCheckIn && (
                           <td className="px-4 py-3 text-gray-700 text-xs">
-                            {fmtDt(r.actualCheckInAt)}
+                            {tab === "inHouse" ? (
+                              <StayTimer
+                                checkInAt={r.actualCheckInAt}
+                                checkOutAt={r.checkOut}
+                                active={r.status === "checked_in"}
+                                compact
+                              />
+                            ) : (
+                              fmtDt(r.actualCheckInAt)
+                            )}
                           </td>
                         )}
                         {showActualCheckOut && (
@@ -544,6 +562,17 @@ export default function FrontDesk() {
                             >
                               Rooms
                             </button>
+                            {tab === "inHouse" && canManageFrontDesk && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  navigate(`/reservations/${r._id}/rooms`)
+                                }
+                                className="h-9 px-3 rounded-xl border border-amber-200 bg-amber-50 text-xs font-medium text-amber-900 hover:bg-amber-100"
+                              >
+                                Change room
+                              </button>
+                            )}
                             {tab === "arrivals" && (
                               <button
                                 type="button"

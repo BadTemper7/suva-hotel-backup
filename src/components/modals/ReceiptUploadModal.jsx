@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { FiX, FiUpload } from "react-icons/fi";
 import { useReceiptStore } from "../../stores/receiptStore";
 import usePaymentTypeStore from "../../stores/paymentTypeStore";
+import StayTypePill from "../ui/StayTypePill.jsx";
 
 export default function ReceiptUploadModal({
   open,
@@ -244,9 +245,12 @@ export default function ReceiptUploadModal({
           <FiX size={20} />
         </button>
 
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">
           Upload Receipt for Billing #{billing?.billingNumber || "N/A"}
         </h2>
+        <div className="mb-4">
+          <StayTypePill reservation={billing?.reservationId} />
+        </div>
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">

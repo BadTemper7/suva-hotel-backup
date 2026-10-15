@@ -26,6 +26,8 @@ import {
   FiList,
 } from "react-icons/fi";
 import Pagination from "../components/ui/Pagination.jsx";
+import StayTypePill from "../components/ui/StayTypePill.jsx";
+import { stayDurationLabel } from "../utils/stay.js";
 
 // Peso Icon Component
 const PesoIcon = ({ className = "w-5 h-5", ...props }) => (
@@ -466,7 +468,7 @@ const Reports = () => {
                     Rooms
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
-                    Nights
+                    Stay
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Status
@@ -487,9 +489,14 @@ const Reports = () => {
                         <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-xl flex items-center justify-center mr-3 border border-gray-200">
                           <FiFileText className="text-[#0c2bfc]" />
                         </div>
-                        <span className="font-semibold">
-                          {reservation.reservationNumber}
-                        </span>
+                        <div>
+                          <span className="font-semibold">
+                            {reservation.reservationNumber}
+                          </span>
+                          <div className="mt-1">
+                            <StayTypePill reservation={reservation} />
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -548,7 +555,7 @@ const Reports = () => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="font-medium text-gray-900">
-                        {reservation.nights || 0}
+                        {stayDurationLabel(reservation) || "—"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -966,6 +973,9 @@ const Reports = () => {
                     Billing #
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Stay type
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Guest
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
@@ -1008,6 +1018,11 @@ const Reports = () => {
                       <span className="font-medium text-gray-900">
                         {receipt.billingId?.billingNumber}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <StayTypePill
+                        reservation={receipt.billingId?.reservationId}
+                      />
                     </td>
                     <td className="px-6 py-4">
                       <div>
@@ -1430,6 +1445,9 @@ const Reports = () => {
                     Guest
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Stay type
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Check-In / Check-Out
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
@@ -1472,6 +1490,9 @@ const Reports = () => {
                         <span className="font-medium text-gray-900">
                           {billing.reservationId?.reservationNumber || "N/A"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <StayTypePill reservation={billing.reservationId} />
                       </td>
                       <td className="px-6 py-4">
                         <div>

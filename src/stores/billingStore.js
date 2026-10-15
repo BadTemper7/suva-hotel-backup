@@ -94,25 +94,48 @@ export const useBillingStore = create((set, get) => ({
   // src/stores/billingStore.js - Add this inside the useBillingStore create function
 
   /**
-   * Print receipt for a billing
-   * @param {string} billingId - The billing ID to print receipt for
+   * Fetch invoice PDF blob for preview or download
    */
-  printReceipt: async (billingId) => {
-    try {
-      if (!billingId) {
-        throw new Error("Billing ID is required");
-      }
-
-      const url = `${API}/billings/${billingId}/print-receipt`;
-      console.log("Printing receipt from URL:", url);
-
-      // Open in new tab for PDF
-      window.open(url, "_blank");
-      return { success: true, message: "Receipt PDF opened" };
-    } catch (err) {
-      console.error("Error printing receipt:", err);
-      throw new Error(err?.message || "Failed to print receipt");
+  fetchInvoicePdf: async (billingId, { download = false } = {}) => {
+    if (!billingId) {
+      throw new Error("Billing ID is required");
     }
+    const qs = download ? "?download=1" : "";
+    const res = await fetch(`${API}/billings/id/${billingId}/invoice${qs}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error || `Failed to load invoice (${res.status})`);
+    }
+    const blob = await res.blob();
+    const header = res.headers.get("content-disposition") || "";
+    const match = header.match(/filename="?([^"]+)"?/i);
+    const filename = match?.[1] || `invoice-${billingId}.pdf`;
+    return { blob, filename };
+  },
+
+  downloadInvoice: async (billingId) => {
+    const { blob, filename } = await get().fetchInvoicePdf(billingId, {
+      download: true,
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return { success: true, filename };
+  },
+
+  sendInvoiceEmail: async (billingId) => {
+    if (!billingId) {
+      throw new Error("Billing ID is required");
+    }
+    const res = await fetch(`${API}/billings/id/${billingId}/invoice/email`, {
+      method: "POST",
+    });
+    return safeJson(res);
   },
   /**
    * Generate billing reports

@@ -272,6 +272,14 @@ export default function AddOnModal({ open, mode, addOn, onClose, onSave }) {
             </div>
           </div>
 
+          {(form.status === "inactive" || Number(form.stock) <= 0) && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              {form.status === "inactive"
+                ? "Inactive add-ons will not appear in reservation forms and cannot be selected."
+                : "Out-of-stock add-ons will not appear in reservation forms until stock is replenished."}
+            </div>
+          )}
+
           {/* Info Box */}
           <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
             <div className="flex gap-3">
@@ -283,7 +291,7 @@ export default function AddOnModal({ open, mode, addOn, onClose, onSave }) {
                   <li>
                     Stock will be tracked and reduced when added to reservations
                   </li>
-                  <li>Inactive add-ons won't appear in reservation forms</li>
+                  <li>Inactive or out-of-stock add-ons won't appear in reservation forms</li>
                   <li>
                     Categories help organize add-ons for better management
                   </li>

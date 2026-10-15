@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FiX } from "react-icons/fi";
 import Loader from "../layout/Loader";
+import StayTypePill from "../ui/StayTypePill.jsx";
 
 export default function EditBillingModal({ open, onClose, billing, onSave }) {
   const [subTotal, setSubTotal] = useState(0);
@@ -128,8 +129,14 @@ export default function EditBillingModal({ open, onClose, billing, onSave }) {
                   <div className="text-lg font-bold text-gray-900">
                     Edit Billing #{billing?.billingNumber}
                   </div>
-                  <div className="text-sm text-gray-600">
-                    Update billing information
+                  <div className="text-sm text-gray-600 flex flex-wrap items-center gap-2 mt-1">
+                    <span>Update billing information</span>
+                    {billing?.reservationId?.reservationNumber && (
+                      <span className="text-gray-400">
+                        · #{billing.reservationId.reservationNumber}
+                      </span>
+                    )}
+                    <StayTypePill reservation={billing?.reservationId} />
                   </div>
                 </div>
                 <button

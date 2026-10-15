@@ -24,6 +24,8 @@ import UploadDiscountImageModal from "../components/modals/UploadDiscountImageMo
 import EditBillingModal from "../components/modals/EditBillingModal.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 import RefundConfirmationModal from "../components/modals/RefundConfirmationModal.jsx";
+import InvoicePreviewModal from "../components/modals/InvoicePreviewModal.jsx";
+import StayTypePill from "../components/ui/StayTypePill.jsx";
 
 const STATUS_STYLES = {
   unpaid: "bg-red-100 text-red-700",
@@ -83,6 +85,7 @@ function BillingCard({
   billing,
   onUpload,
   onView,
+  onViewInvoice,
   onViewDiscounts,
   onRefund,
   canManage,
@@ -123,8 +126,11 @@ function BillingCard({
           <div className="text-sm font-semibold text-gray-900 truncate">
             {billing.billingNumber}
           </div>
-          <div className="text-xs text-gray-600 font-medium">
-            {billing.reservationId?.reservationNumber}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="text-xs text-gray-600 font-medium">
+              {billing.reservationId?.reservationNumber}
+            </div>
+            <StayTypePill reservation={billing.reservationId} />
           </div>
         </div>
 
@@ -201,6 +207,25 @@ function BillingCard({
           "
         >
           <FiTag className="w-4 h-4" /> Discounts
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onViewInvoice(billing)}
+          className="
+            h-10 px-4 rounded-xl 
+            border border-gray-200 
+            bg-white
+            hover:bg-gray-50
+            text-sm font-medium inline-flex items-center gap-2
+            transition-all duration-200
+            hover:shadow-md hover:-translate-y-0.5
+            active:translate-y-0
+            text-gray-700 hover:text-[#0c2bfc]
+          "
+        >
+          <FiPrinter className="w-4 h-4" />
+          View Invoice
         </button>
 
         <button
@@ -354,6 +379,10 @@ export default function Billing() {
     open: false,
     billing: null,
   });
+  const [viewInvoiceModal, setViewInvoiceModal] = useState({
+    open: false,
+    billing: null,
+  });
   const [editModal, setEditModal] = useState({
     open: false,
     billing: null,
@@ -429,6 +458,11 @@ export default function Billing() {
     setUploadDiscountModal({ open: true, billing });
   const closeUploadDiscountModal = () =>
     setUploadDiscountModal({ open: false, billing: null });
+
+  const openViewInvoiceModal = (billing) =>
+    setViewInvoiceModal({ open: true, billing });
+  const closeViewInvoiceModal = () =>
+    setViewInvoiceModal({ open: false, billing: null });
 
   const openEditModal = (billing) => setEditModal({ open: true, billing });
   const closeEditModal = () => setEditModal({ open: false, billing: null });
@@ -661,6 +695,7 @@ export default function Billing() {
             billing={b}
             onUpload={openUploadModal}
             onView={openViewReceiptsModal}
+            onViewInvoice={openViewInvoiceModal}
             onViewDiscounts={openViewDiscountImagesModal}
             onRefund={openRefundModal}
             canManage={canManageBill}
@@ -756,6 +791,9 @@ export default function Billing() {
                   Reservation #
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                  Stay type
+                </th>
+                <th className="text-left font-semibold text-gray-700 px-6 py-4">
                   Guest
                 </th>
                 <th className="text-left font-semibold text-gray-700 px-6 py-4">
@@ -824,6 +862,10 @@ export default function Billing() {
                       <div className="text-gray-700 font-medium">
                         {b.reservationId?.reservationNumber}
                       </div>
+                    </td>
+
+                    <td className="px-6 py-4">
+                      <StayTypePill reservation={b.reservationId} />
                     </td>
 
                     <td className="px-6 py-4">
@@ -908,6 +950,25 @@ export default function Billing() {
                           title="View Discount Images"
                         >
                           <FiTag className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => openViewInvoiceModal(b)}
+                          className="
+        h-10 w-10 rounded-xl 
+        border border-gray-200 
+        bg-white
+        hover:bg-gray-50
+        grid place-items-center
+        transition-all duration-200
+        hover:shadow-md hover:-translate-y-0.5
+        active:translate-y-0
+        text-gray-700 hover:text-[#0c2bfc]
+      "
+                          title="View Invoice"
+                        >
+                          <FiPrinter className="w-4 h-4" />
                         </button>
 
                         <button
@@ -1025,7 +1086,7 @@ export default function Billing() {
 
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-6 py-16 text-center">
+                  <td colSpan={13} className="px-6 py-16 text-center">
                     <div className="text-gray-300 mb-3">
                       <svg
                         className="w-16 h-16 mx-auto"
@@ -1072,6 +1133,15 @@ export default function Billing() {
           onClose={closeUploadModal}
           billing={uploadModal.billing}
           onSuccess={handleReceiptSuccess}
+        />
+      )}
+
+      {/* View Invoice Modal */}
+      {viewInvoiceModal.open && (
+        <InvoicePreviewModal
+          open={viewInvoiceModal.open}
+          onClose={closeViewInvoiceModal}
+          billing={viewInvoiceModal.billing}
         />
       )}
 

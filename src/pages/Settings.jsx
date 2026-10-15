@@ -14,6 +14,7 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import Loader from "../components/layout/Loader.jsx";
 import { useSettingsStore } from "../stores/settingsStore.js";
+import { useRoomTypeStore } from "../stores/roomTypeStore.js";
 import { getUserRole } from "../app/auth.js";
 
 export default function Settings() {
@@ -30,6 +31,7 @@ export default function Settings() {
     resetToDefaults,
     getSetting,
   } = useSettingsStore();
+  const { roomTypes, fetchRoomTypes } = useRoomTypeStore();
 
   const [activeCategory, setActiveCategory] = useState("general");
   const [formData, setFormData] = useState({});
@@ -45,7 +47,8 @@ export default function Settings() {
     fetchSettings().catch((err) =>
       toast.error(err.message || "Failed to fetch settings"),
     );
-  }, [fetchSettings]);
+    fetchRoomTypes().catch(() => {});
+  }, [fetchSettings, fetchRoomTypes]);
 
   useEffect(() => {
     if (Object.keys(flatSettings).length > 0) {
@@ -498,6 +501,43 @@ export default function Settings() {
                         Warning will show {formData[setting.key] || 1} minute
                         {formData[setting.key] !== "1" ? "s" : ""} before logout
                       </div>
+                    </div>
+                  ) : setting.key === "securityDeposits" ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {(() => {
+                        const current =
+                          formData.securityDeposits &&
+                          typeof formData.securityDeposits === "object"
+                            ? formData.securityDeposits
+                            : { Cuarto: 500, Teodora: 500, Casa: 1000 };
+                        const names = [
+                          ...new Set([
+                            ...Object.keys(current),
+                            ...roomTypes.map((rt) => rt.name).filter(Boolean),
+                          ]),
+                        ];
+                        return names.map((name) => (
+                          <div key={name}>
+                            <label className="text-xs text-gray-500 mb-1 block">
+                              {name}
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              disabled={!isAdmin}
+                              value={current[name] ?? 0}
+                              onChange={(e) =>
+                                handleInputChange("securityDeposits", {
+                                  ...current,
+                                  [name]: Number(e.target.value || 0),
+                                })
+                              }
+                              className="w-full h-11 rounded-xl border border-gray-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] disabled:opacity-70"
+                            />
+                          </div>
+                        ));
+                      })()}
                     </div>
                   ) : setting.options && setting.options.length > 0 ? (
                     <select

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FiX, FiImage, FiRefreshCw } from "react-icons/fi";
 import toast from "react-hot-toast";
 import ImagePreviewModal from "./ImagePreviewModal.jsx";
+import StayTypePill from "../ui/StayTypePill.jsx";
 
 const STATUS_STYLES = {
   pending: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
@@ -397,11 +398,14 @@ export default function ReservationStatusModal({
               </div>
 
               <div className="mt-3 text-sm text-gray-700 space-y-1">
-                <div>
-                  Reservation ID:{" "}
-                  <span className="font-semibold text-gray-900">
-                    {reservationNumber}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span>
+                    Reservation ID:{" "}
+                    <span className="font-semibold text-gray-900">
+                      {reservationNumber}
+                    </span>
                   </span>
+                  <StayTypePill reservation={reservation} />
                 </div>
                 <div>
                   Guest:{" "}
@@ -772,6 +776,9 @@ export default function ReservationStatusModal({
                                   {receiptStatus.charAt(0).toUpperCase() +
                                     receiptStatus.slice(1)}
                                 </span>
+                                <StayTypePill reservation={reservation} />
+                              </div>
+                              <div className="mt-1 text-right">
                                 <span className="text-xs text-gray-500">
                                   {formatDateTime(receipt?.createdAt)}
                                 </span>

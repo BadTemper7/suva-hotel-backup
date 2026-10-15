@@ -16,10 +16,11 @@ import { useAmenityStore } from "../stores/amenityStore.js";
 import { getUser } from "../app/auth.js";
 import { canManageRooms, isAdminRole } from "../utils/staffPermissions.js";
 import Pagination from "../components/ui/Pagination.jsx";
+import { getStockLevel, stockLevelClasses, stockLabel } from "../utils/inventory.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
-  inactive: "bg-gray-100 text-gray-700",
+  inactive: "bg-red-100 text-red-700",
 };
 
 function normalizeStatus(value) {
@@ -103,11 +104,31 @@ function AmenityCard({ amenity, onEdit, selected, onSelect, canEdit = true }) {
                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
               />
             </svg>
-            <span className="font-medium">Stock: {amenity.stock ?? 0}</span>
+            <span
+              className={`font-medium ${
+                getStockLevel(amenity.stock) === "out"
+                  ? "text-red-700"
+                  : getStockLevel(amenity.stock) === "low"
+                    ? "text-amber-700"
+                    : ""
+              }`}
+            >
+              {stockLabel(amenity.stock)}
+            </span>
           </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <StatusPill value={amenity.status} />
+          {getStockLevel(amenity.stock) === "out" && (
+            <span className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700">
+              Out of stock
+            </span>
+          )}
+          {getStockLevel(amenity.stock) === "low" && (
+            <span className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-800">
+              Low stock
+            </span>
+          )}
         </div>
       </div>
 
@@ -597,20 +618,22 @@ export default function Amenities() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <span
-                        className="
-                        px-3 py-1.5 rounded-full 
-                        bg-gray-100
-                        text-gray-700 text-xs font-medium
-                        border border-gray-200
-                      "
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border ${stockLevelClasses(getStockLevel(a.stock))}`}
                       >
-                        {a.stock ?? 0} units
+                        {stockLabel(a.stock, { includeUnits: true })}
                       </span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4">
-                    <StatusPill value={a.status} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill value={a.status} />
+                      {getStockLevel(a.stock) === "out" && (
+                        <span className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700">
+                          Out of stock
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   {canEditDelete && (

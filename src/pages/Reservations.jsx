@@ -30,6 +30,7 @@ import {
 } from "../utils/staffPermissions.js";
 import { Helmet } from "react-helmet";
 import Pagination from "../components/ui/Pagination.jsx";
+import StayTypePill from "../components/ui/StayTypePill.jsx";
 
 const STATUS_STYLES = {
   pending: "bg-[#0c2bfc]/10 text-[#0c2bfc]",
@@ -150,6 +151,7 @@ function ReservationCard({
             <div className="text-sm font-semibold text-gray-900 truncate">
               #{reservation.reservationNumber}
             </div>
+            <StayTypePill reservation={reservation} />
             {isComplimentary && (
               <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-purple-100 text-purple-700">
                 Free
@@ -950,6 +952,9 @@ export default function Reservations() {
                     Payment Option
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
+                    Stay type
+                  </th>
+                  <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Dates
                   </th>
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
@@ -1044,6 +1049,10 @@ export default function Reservations() {
                             Free reservation (no payment required)
                           </div>
                         )}
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <StayTypePill reservation={r} />
                       </td>
 
                       <td className="px-6 py-4">
