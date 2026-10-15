@@ -20,10 +20,16 @@ import { useAddOnStore } from "../stores/addOnStore.js";
 import { getUser } from "../app/auth.js";
 import { isAdminRole } from "../utils/staffPermissions.js";
 import Pagination from "../components/ui/Pagination.jsx";
+import {
+  getCatalogStock,
+  getStockLevel,
+  stockLevelClasses,
+  stockLabel,
+} from "../utils/inventory.js";
 
 const STATUS_STYLES = {
   active: "bg-[#00af00]/10 text-[#00af00]",
-  inactive: "bg-gray-100 text-gray-700",
+  inactive: "bg-red-100 text-red-700",
 };
 
 const CATEGORY_STYLES = {
@@ -50,14 +56,28 @@ function normalizeStatus(value) {
   return "active";
 }
 
-function StatusPill({ value }) {
-  const v = normalizeStatus(value);
+function StatusPills({ addOn }) {
+  const v = normalizeStatus(addOn?.status);
+  const stock = getCatalogStock(addOn);
+  const stockLevel = getStockLevel(stock);
   return (
-    <span
-      className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${STATUS_STYLES[v]}`}
-    >
-      {v === "inactive" ? "Inactive" : "Active"}
-    </span>
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium ${STATUS_STYLES[v]}`}
+      >
+        {v === "inactive" ? "Inactive" : "Active"}
+      </span>
+      {stockLevel === "out" && (
+        <span className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium bg-red-100 text-red-700">
+          Out of stock
+        </span>
+      )}
+      {stockLevel === "low" && (
+        <span className="inline-flex items-center rounded-full px-3 py-1.5 text-xs font-medium bg-amber-100 text-amber-800">
+          Low stock
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -144,11 +164,21 @@ function AddOnCard({ addOn, onEdit, selected, onSelect, canEdit = true }) {
                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
               />
             </svg>
-            <span className="font-medium">Stock: {addOn.stock ?? 0}</span>
+            <span
+              className={`font-medium ${
+                getStockLevel(addOn.stock) === "out"
+                  ? "text-red-700"
+                  : getStockLevel(addOn.stock) === "low"
+                    ? "text-amber-700"
+                    : ""
+              }`}
+            >
+              {stockLabel(addOn.stock)}
+            </span>
           </div>
         </div>
         <div className="mt-3">
-          <StatusPill value={addOn.status} />
+          <StatusPills addOn={addOn} />
         </div>
       </div>
 
@@ -691,20 +721,15 @@ export default function AddOns() {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <span
-                        className="
-                        px-3 py-1.5 rounded-full 
-                        bg-gray-100
-                        text-gray-700 text-xs font-medium
-                        border border-gray-200
-                      "
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border ${stockLevelClasses(getStockLevel(a.stock))}`}
                       >
-                        {a.stock ?? 0} units
+                        {stockLabel(a.stock, { includeUnits: true })}
                       </span>
                     </div>
                   </td>
 
                   <td className="px-6 py-4">
-                    <StatusPill value={a.status} />
+                    <StatusPills addOn={a} />
                   </td>
 
                   {canEditDelete && (

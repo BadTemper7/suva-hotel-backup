@@ -6,6 +6,7 @@ import {
   FiCheck,
   FiMinus,
   FiPlus,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { useNavigate, useParams } from "react-router-dom";
 import { useReservation } from "../context/ReservationContext";
@@ -17,7 +18,15 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import Loader from "../components/layout/Loader";
 import Pagination from "../components/ui/Pagination";
+import StayTypePill from "../components/ui/StayTypePill.jsx";
 import NotFound from "./NotFound";
+import {
+  LOW_STOCK_THRESHOLD,
+  getCatalogStock,
+  getStockLevel,
+  isInventoryActive,
+  stockWarningMessage,
+} from "../utils/inventory.js";
 
 export default function AmenityReservation() {
   const navigate = useNavigate();
@@ -80,9 +89,40 @@ export default function AmenityReservation() {
   }, [reservation, reservationLoading]);
 
   const handleQuantityChange = (amenityId, delta) => {
+    const amenity = allAmenities.find((a) => a._id === amenityId);
+    const catalogStock = getCatalogStock(amenity);
+    const currentQty = selectedAmenities[amenityId] || 0;
+
+    if (delta > 0) {
+      if (!isInventoryActive(amenity)) {
+        toast.error(
+          `${amenity?.name || "This amenity"} is inactive and cannot be reserved.`,
+        );
+        return;
+      }
+      if (catalogStock <= 0) {
+        toast.error(
+          `${amenity?.name || "This amenity"} is out of stock. Available: 0`,
+        );
+        return;
+      }
+      if (currentQty >= catalogStock) {
+        toast.error(
+          `Only ${catalogStock} ${amenity?.name || "item"} available in stock.`,
+        );
+        return;
+      }
+      if (currentQty === 0 && catalogStock <= LOW_STOCK_THRESHOLD) {
+        toast(
+          `Only ${catalogStock} ${amenity?.name || "item"} available in stock.`,
+          { icon: "⚠️" },
+        );
+      }
+    }
+
     setSelectedAmenities((prev) => {
-      const currentQty = prev[amenityId] || 0;
-      const newQty = Math.max(0, currentQty + delta);
+      const qty = prev[amenityId] || 0;
+      const newQty = Math.max(0, Math.min(catalogStock, qty + delta));
 
       if (newQty === 0) {
         const { [amenityId]: removed, ...rest } = prev;
@@ -97,7 +137,21 @@ export default function AmenityReservation() {
   };
 
   const handleSetQuantity = (amenityId, quantity) => {
-    const qty = parseInt(quantity) || 0;
+    const amenity = allAmenities.find((a) => a._id === amenityId);
+    const catalogStock = getCatalogStock(amenity);
+    let qty = parseInt(quantity) || 0;
+
+    if (!isInventoryActive(amenity) && qty > 0) {
+      toast.error(
+        `${amenity?.name || "This amenity"} is inactive and cannot be reserved.`,
+      );
+      qty = 0;
+    } else if (qty > catalogStock) {
+      toast.error(
+        `Only ${catalogStock} ${amenity?.name || "item"} available in stock.`,
+      );
+      qty = catalogStock;
+    }
 
     if (qty <= 0) {
       setSelectedAmenities((prev) => {
@@ -121,6 +175,27 @@ export default function AmenityReservation() {
     // Check if reservation can be modified
     if (!reservationHelpers.canModifyReservation(reservation)) {
       toast.error(`Cannot modify a ${reservation.status} reservation`);
+      return;
+    }
+
+    const stockIssues = Object.entries(selectedAmenities)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([amenityId, quantity]) => {
+        const amenity = allAmenities.find((a) => a._id === amenityId);
+        if (!amenity) return "An amenity is no longer available.";
+        if (!isInventoryActive(amenity)) {
+          return `${amenity.name} is inactive and cannot be reserved.`;
+        }
+        const catalogStock = getCatalogStock(amenity);
+        if (quantity > catalogStock) {
+          return `${amenity.name}: requested ${quantity}, only ${catalogStock} available.`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (stockIssues.length > 0) {
+      toast.error(stockIssues[0]);
       return;
     }
 
@@ -212,6 +287,37 @@ export default function AmenityReservation() {
     return filtered;
   }, [allAmenities, searchTerm, statusFilter]);
 
+  const stockWarnings = useMemo(() => {
+    const selectedIssues = Object.entries(selectedAmenities)
+      .filter(([, qty]) => qty > 0)
+      .map(([id, qty]) => {
+        const amenity = allAmenities.find((a) => a._id === id);
+        if (!amenity) return "A selected amenity is no longer available.";
+        if (!isInventoryActive(amenity)) {
+          return `${amenity.name} is inactive and cannot be reserved.`;
+        }
+        const catalogStock = getCatalogStock(amenity);
+        if (qty > catalogStock) {
+          return `${amenity.name}: requested ${qty}, only ${catalogStock} available.`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    const catalogWarnings = allAmenities
+      .filter(
+        (amenity) =>
+          isInventoryActive(amenity) &&
+          getCatalogStock(amenity) <= LOW_STOCK_THRESHOLD,
+      )
+      .map((amenity) =>
+        stockWarningMessage(amenity, getCatalogStock(amenity)),
+      )
+      .filter(Boolean);
+
+    return [...new Set([...selectedIssues, ...catalogWarnings])];
+  }, [allAmenities, selectedAmenities]);
+
   const total = filteredAmenities.length;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const pagedAmenities = filteredAmenities.slice(
@@ -297,11 +403,12 @@ export default function AmenityReservation() {
           <div className="text-lg font-semibold text-gray-900">
             Manage Amenities for Reservation
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 flex flex-wrap items-center gap-2">
             {hasExistingAmenities
               ? "Add, update, or remove amenities for reservation"
               : "Add amenities to reservation"}{" "}
             # {reservation?.reservationNumber || reservation?._id?.slice(-6)}
+            <StayTypePill reservation={reservation} />
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -437,6 +544,23 @@ export default function AmenityReservation() {
         </div>
       )}
 
+      {stockWarnings.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <div className="text-sm font-medium text-amber-900 mb-1 inline-flex items-center gap-2">
+            <FiAlertTriangle />
+            Stock warnings
+          </div>
+          <div className="text-sm text-amber-800 space-y-1">
+            {stockWarnings.slice(0, 5).map((warning) => (
+              <div key={warning}>{warning}</div>
+            ))}
+            {stockWarnings.length > 5 && (
+              <div>and {stockWarnings.length - 5} more.</div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
@@ -528,6 +652,11 @@ export default function AmenityReservation() {
                       const subtotal = newQty * amenity.rate;
                       const hasChanged = currentQty !== newQty;
                       const isNew = currentQty === 0 && newQty > 0;
+                      const catalogStock = getCatalogStock(amenity);
+                      const remaining = Math.max(0, catalogStock - newQty);
+                      const stockLevel = getStockLevel(remaining);
+                      const inactive = !isInventoryActive(amenity);
+                      const cannotAdd = inactive || remaining <= 0;
 
                       return (
                         <tr
@@ -551,6 +680,20 @@ export default function AmenityReservation() {
                                 </span>
                               )}
                             </div>
+                            {cannotAdd && (
+                              <div className="mt-1 text-xs text-amber-700 inline-flex items-center gap-1">
+                                <FiAlertTriangle />
+                                {inactive
+                                  ? "Inactive — cannot be reserved"
+                                  : "Out of stock"}
+                              </div>
+                            )}
+                            {!cannotAdd && stockLevel === "low" && (
+                              <div className="mt-1 text-xs text-amber-700 inline-flex items-center gap-1">
+                                <FiAlertTriangle />
+                                Only {remaining} available
+                              </div>
+                            )}
                           </td>
                           <td className="px-5 py-3 text-gray-700">
                             {new Intl.NumberFormat("en-PH", {
@@ -561,23 +704,25 @@ export default function AmenityReservation() {
                           <td className="px-5 py-3 text-gray-700">
                             <span
                               className={
-                                newQty > amenity.stock
+                                stockLevel === "out"
                                   ? "text-red-600 font-medium"
-                                  : ""
+                                  : stockLevel === "low"
+                                    ? "text-amber-700 font-medium"
+                                    : ""
                               }
                             >
-                              {amenity.stock}
+                              {catalogStock} available
                             </span>
                           </td>
                           <td className="px-5 py-3">
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                amenity.status === "active"
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-red-100 text-red-800"
+                                inactive
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-green-100 text-green-800"
                               }`}
                             >
-                              {amenity.status}
+                              {inactive ? "Inactive" : "Active"}
                             </span>
                           </td>
                           <td className="px-5 py-3 text-gray-500">
@@ -597,8 +742,9 @@ export default function AmenityReservation() {
                               <input
                                 type="number"
                                 min="0"
-                                max={amenity.stock}
+                                max={catalogStock}
                                 value={newQty}
+                                disabled={inactive && newQty === 0}
                                 onChange={(e) =>
                                   handleSetQuantity(amenity._id, e.target.value)
                                 }
@@ -606,13 +752,13 @@ export default function AmenityReservation() {
                                   hasChanged
                                     ? "border-blue-300 bg-blue-50"
                                     : "border-gray-200 bg-white"
-                                } focus:outline-none focus:ring-2 focus:ring-blue-200`}
+                                } focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:bg-gray-50 disabled:text-gray-400`}
                               />
                               <button
                                 onClick={() =>
                                   handleQuantityChange(amenity._id, 1)
                                 }
-                                disabled={newQty >= amenity.stock}
+                                disabled={cannotAdd}
                                 className="h-8 w-8 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                               >
                                 <FiPlus className="text-gray-600" />

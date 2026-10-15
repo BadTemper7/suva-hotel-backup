@@ -1,5 +1,6 @@
 // src/stores/reservationRoomStore.js
 import { create } from "zustand";
+import { getToken } from "../app/auth.js";
 
 const API =
   import.meta.env.VITE_SERVER_URI || import.meta.env.VITE_SERVER_LOCAL;
@@ -250,4 +251,39 @@ export const useReservationRoomStore = create((set, get) => ({
   clearRooms: () => set({ rooms: [], error: null }),
   clearError: () => set({ error: null }),
   isLoading: () => get().loading,
+
+  transferReservationRoom: async ({ reservationRoomId, newRoomId, reason, reservationId }) => {
+    set({ loading: true, error: null });
+    try {
+      const token = getToken();
+      const res = await fetch(
+        `${API}/reservation-rooms/${reservationRoomId}/transfer`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ newRoomId, reason }),
+        },
+      );
+      const data = await safeJson(res);
+      if (reservationId) {
+        const billingRes = await fetch(`${API}/billings/${reservationId}`);
+        const billing = await safeJson(billingRes);
+        const billingId = billing.billing?._id || billing._id;
+        if (billingId) {
+          await fetch(`${API}/billings/calculate/${billingId}`, {
+            method: "PUT",
+          });
+        }
+        await get().fetchRoomsByReservationId(reservationId);
+      }
+      set({ loading: false });
+      return data;
+    } catch (err) {
+      set({ loading: false, error: err.message });
+      throw err;
+    }
+  },
 }));

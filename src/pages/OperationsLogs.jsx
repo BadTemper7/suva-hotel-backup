@@ -15,6 +15,7 @@ const ACTION_LABELS = {
   maintenance: "Maintenance",
   check_in: "Check In",
   check_out: "Check Out",
+  room_transfer: "Room Transfer",
 };
 
 function formatDateTime(value) {
@@ -179,6 +180,7 @@ export default function OperationsLogs() {
                     <option value="maintenance">Maintenance</option>
                     <option value="check_in">Check In</option>
                     <option value="check_out">Check Out</option>
+                    <option value="room_transfer">Room Transfer</option>
                   </select>
                 </div>
               </div>

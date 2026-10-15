@@ -158,6 +158,14 @@ export default function AmenityModal({ open, mode, amenity, onClose, onSave }) {
             </select>
           </div>
 
+          {(form.status === "inactive" || Number(form.stock) <= 0) && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              {form.status === "inactive"
+                ? "Inactive amenities cannot be selected when creating or updating a reservation."
+                : "Out-of-stock amenities cannot be reserved until stock is replenished."}
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
             <button
               type="button"

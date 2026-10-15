@@ -22,6 +22,7 @@ import {
   FiFilter,
   FiClock,
   FiSun,
+  FiAlertTriangle,
 } from "react-icons/fi";
 import { Helmet } from "react-helmet";
 
@@ -33,6 +34,21 @@ import { useGuestStore } from "../stores/guestStore.js";
 import NumberInput from "../components/ui/NumberInput.jsx";
 import Stepper from "../components/ui/NumberInput.jsx";
 import ImagePreviewModal from "../components/modals/ImagePreviewModal.jsx";
+import {
+  HOURLY_DURATIONS,
+  getHourlyRate,
+  getRoomStayCharge,
+  roomOffersHourlyPackage,
+  stayRateLabel,
+} from "../utils/stay.js";
+import {
+  LOW_STOCK_THRESHOLD,
+  getCatalogStock,
+  getStockLevel,
+  isInventoryActive,
+  isInventorySelectable,
+  stockWarningMessage,
+} from "../utils/inventory.js";
 
 // Get admin info from localStorage
 const admin_info = JSON.parse(localStorage.getItem("suva_admin_user") || "{}");
@@ -120,6 +136,13 @@ const nightsBetween = (checkIn, checkOut) => {
   const diff = b - a;
   const nights = Math.ceil(diff / (1000 * 60 * 60 * 24)); // Convert to days
   return Math.max(1, nights); // At least 1 night
+};
+
+const computeHourlyCheckOut = (checkInDate, hours) => {
+  if (!checkInDate || !hours) return "";
+  const d = new Date(checkInDate);
+  d.setHours(d.getHours() + Number(hours));
+  return toISODateTime(d);
 };
 
 const validatePhone = (v) => /^09\d{9}$/.test(String(v || ""));
@@ -270,6 +293,8 @@ export default function ReservationProcess() {
   const [reservationFormData, setReservationFormData] = useState({
     checkIn: getDefaultCheckIn(),
     checkOut: getDefaultCheckOut(),
+    stayType: "overnight",
+    hourlyDuration: 3,
     adults: 1,
     children: 0,
     guestId: "", // Will be set when guest is selected/created
@@ -337,16 +362,29 @@ export default function ReservationProcess() {
 
   // Update check-out when check-in changes
   useEffect(() => {
-    if (reservationFormData.checkIn) {
-      const checkIn = new Date(reservationFormData.checkIn);
-      const checkOut = new Date(checkIn);
-      checkOut.setDate(checkOut.getDate() + 1);
+    if (!reservationFormData.checkIn) return;
+    if (reservationFormData.stayType === "hourly") {
       setReservationFormData((prev) => ({
         ...prev,
-        checkOut: toISODateTime(setTimeTo(checkOut, 12, 0)),
+        checkOut: computeHourlyCheckOut(
+          prev.checkIn,
+          prev.hourlyDuration || 3,
+        ),
       }));
+      return;
     }
-  }, [reservationFormData.checkIn]);
+    const checkIn = new Date(reservationFormData.checkIn);
+    const checkOut = new Date(checkIn);
+    checkOut.setDate(checkOut.getDate() + 1);
+    setReservationFormData((prev) => ({
+      ...prev,
+      checkOut: toISODateTime(setTimeTo(checkOut, 12, 0)),
+    }));
+  }, [
+    reservationFormData.checkIn,
+    reservationFormData.stayType,
+    reservationFormData.hourlyDuration,
+  ]);
 
   // Filter available items by category/capacity
   const filteredAvailableItems = useMemo(() => {
@@ -358,6 +396,12 @@ export default function ReservationProcess() {
       const matchesCategory =
         categoryFilter === "all" ? true : item.category === categoryFilter;
       if (!matchesCategory) return false;
+      if (
+        reservationFormData.stayType === "hourly" &&
+        !roomOffersHourlyPackage(item, reservationFormData.hourlyDuration)
+      ) {
+        return false;
+      }
       if (!fitCapacityOnly) return true;
       return Number(item?.capacity || 0) >= requiredGuests;
     });
@@ -367,6 +411,8 @@ export default function ReservationProcess() {
     fitCapacityOnly,
     reservationFormData.adults,
     reservationFormData.children,
+    reservationFormData.stayType,
+    reservationFormData.hourlyDuration,
   ]);
 
   // Calculate counts
@@ -567,8 +613,15 @@ export default function ReservationProcess() {
   const roomTotals = useMemo(() => {
     return roomReservations.map((roomRes) => {
       const room = availableRooms.find((r) => r._id === roomRes.roomId);
-      const roomRate = room?.rate || 0;
-      const roomSubtotal = roomRate * nights;
+      const roomRate =
+        reservationFormData.stayType === "hourly"
+          ? getHourlyRate(room, reservationFormData.hourlyDuration)
+          : room?.rate || 0;
+      const roomSubtotal = getRoomStayCharge(room, {
+        stayType: reservationFormData.stayType,
+        hourlyDuration: reservationFormData.hourlyDuration,
+        nights,
+      });
       const isCottage = room?.category === "cottage";
 
       let addOnsSubtotal = 0;
@@ -589,7 +642,31 @@ export default function ReservationProcess() {
         isCottage,
       };
     });
-  }, [roomReservations, availableRooms, nights, addOns]);
+  }, [roomReservations, availableRooms, nights, addOns, reservationFormData.stayType, reservationFormData.hourlyDuration]);
+
+  const selectableAddOns = useMemo(
+    () => (addOns || []).filter(isInventorySelectable),
+    [addOns],
+  );
+
+  const getAddOnUsedQuantity = (addOnId) =>
+    roomReservations.reduce((sum, room) => {
+      const item = room.addOns?.find((a) => a.addOnId === addOnId);
+      return sum + (item?.quantity || 0);
+    }, 0);
+
+  const getAddOnRemainingStock = (addOnId) => {
+    const addOn = addOns.find((a) => a._id === addOnId);
+    if (!addOn) return 0;
+    return Math.max(0, getCatalogStock(addOn) - getAddOnUsedQuantity(addOnId));
+  };
+
+  const getAddOnsForRoom = (room) => {
+    const selectedIds = new Set((room?.addOns || []).map((a) => a.addOnId));
+    return (addOns || []).filter(
+      (item) => selectedIds.has(item._id) || isInventorySelectable(item),
+    );
+  };
 
   const totalAmount = useMemo(() => {
     return roomTotals.reduce((sum, room) => sum + room.total, 0);
@@ -871,9 +948,17 @@ export default function ReservationProcess() {
     } else if (
       reservationFormData.checkIn &&
       reservationFormData.checkOut &&
-      nights <= 0
+      new Date(reservationFormData.checkOut) <=
+        new Date(reservationFormData.checkIn)
     ) {
       errors.checkOut = "Check-out must be after check-in.";
+    }
+
+    if (
+      reservationFormData.stayType === "hourly" &&
+      ![3, 6, 12].includes(Number(reservationFormData.hourlyDuration))
+    ) {
+      errors.hourlyDuration = "Select 3, 6, or 12 hours.";
     }
 
     if (reservationFormData.adults < 1) {
@@ -917,10 +1002,35 @@ export default function ReservationProcess() {
       errors.capacity = `Capacity requirement not met for ${requiredCapacity} guests. Please ${requirements.join(" and ")}.`;
     }
 
+    const usedByAddOn = {};
+    roomReservations.forEach((room) => {
+      (room.addOns || []).forEach((item) => {
+        usedByAddOn[item.addOnId] =
+          (usedByAddOn[item.addOnId] || 0) + Number(item.quantity || 0);
+      });
+    });
+    const stockIssues = Object.entries(usedByAddOn)
+      .map(([addOnId, quantity]) => {
+        const addOn = addOns.find((a) => a._id === addOnId);
+        if (!addOn) return "An amenity is no longer available.";
+        if (!isInventoryActive(addOn)) {
+          return `${addOn.name} is inactive and cannot be reserved.`;
+        }
+        const catalogStock = getCatalogStock(addOn);
+        if (quantity > catalogStock) {
+          return `${addOn.name}: requested ${quantity}, only ${catalogStock} available.`;
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (stockIssues.length > 0) {
+      errors.addons = stockIssues[0];
+    }
+
     setErrors(errors);
 
     if (Object.keys(errors).length > 0) {
-      toast.error("Please fix the highlighted fields.");
+      toast.error(errors.addons || "Please fix the highlighted fields.");
       return false;
     }
 
@@ -1102,17 +1212,88 @@ export default function ReservationProcess() {
       return;
     }
 
-    if (!addOns?.length) {
-      toast.error("No add-ons available.");
+    if (!selectableAddOns.length) {
+      toast.error(
+        "No add-ons available. Inactive or out-of-stock items cannot be selected.",
+      );
       return;
+    }
+
+    const firstAddOn = selectableAddOns[0];
+    const remaining = getAddOnRemainingStock(firstAddOn._id);
+    if (remaining <= 0) {
+      toast.error(`${firstAddOn.name} is out of stock.`);
+      return;
+    }
+    if (remaining <= LOW_STOCK_THRESHOLD) {
+      toast(`Only ${remaining} ${firstAddOn.name} available in stock.`, {
+        icon: "⚠️",
+      });
     }
 
     setRoomReservations((prev) => {
       const updated = [...prev];
       updated[roomIndex].addOns.push({
-        addOnId: addOns[0]._id,
+        addOnId: firstAddOn._id,
         quantity: 1,
       });
+      return updated;
+    });
+  };
+
+  const adjustRoomAddOnQuantity = (roomId, amenity, delta) => {
+    const remaining = getAddOnRemainingStock(amenity._id);
+
+    setRoomReservations((prev) => {
+      const updated = [...prev];
+      const roomIndex = updated.findIndex((r) => r.roomId === roomId);
+      if (roomIndex < 0) return prev;
+
+      const room = {
+        ...updated[roomIndex],
+        addOns: [...(updated[roomIndex].addOns || [])],
+      };
+      const amenityIndex = room.addOns.findIndex(
+        (a) => a.addOnId === amenity._id,
+      );
+      const currentQty =
+        amenityIndex >= 0 ? room.addOns[amenityIndex].quantity : 0;
+
+      if (delta > 0) {
+        if (!isInventoryActive(amenity)) {
+          toast.error(`${amenity.name} is inactive and cannot be reserved.`);
+          return prev;
+        }
+        if (remaining <= 0) {
+          toast.error(`${amenity.name} is out of stock. Available: 0`);
+          return prev;
+        }
+        if (currentQty === 0 && remaining <= LOW_STOCK_THRESHOLD) {
+          toast(`Only ${remaining} ${amenity.name} available in stock.`, {
+            icon: "⚠️",
+          });
+        }
+        if (amenityIndex >= 0) {
+          room.addOns[amenityIndex] = {
+            ...room.addOns[amenityIndex],
+            quantity: currentQty + 1,
+          };
+        } else {
+          room.addOns.push({ addOnId: amenity._id, quantity: 1 });
+        }
+      } else {
+        if (currentQty <= 0) return prev;
+        if (currentQty === 1) {
+          room.addOns = room.addOns.filter((a) => a.addOnId !== amenity._id);
+        } else {
+          room.addOns[amenityIndex] = {
+            ...room.addOns[amenityIndex],
+            quantity: currentQty - 1,
+          };
+        }
+      }
+
+      updated[roomIndex] = room;
       return updated;
     });
   };
@@ -1181,6 +1362,8 @@ export default function ReservationProcess() {
     setReservationFormData({
       checkIn: getDefaultCheckIn(),
       checkOut: getDefaultCheckOut(),
+      stayType: "overnight",
+      hourlyDuration: 3,
       adults: 1,
       children: 0,
       guestId: "",
@@ -1241,6 +1424,8 @@ export default function ReservationProcess() {
         reservationData: {
           checkIn: reservationFormData.checkIn,
           checkOut: reservationFormData.checkOut,
+          stayType: reservationFormData.stayType,
+          hourlyDuration: reservationFormData.hourlyDuration,
           adults: reservationFormData.adults,
           children: reservationFormData.children,
           seniorCitizenCount: payment.seniorCitizenCount || 0,
@@ -1308,6 +1493,8 @@ export default function ReservationProcess() {
         reservationData: {
           checkIn: reservationFormData.checkIn,
           checkOut: reservationFormData.checkOut,
+          stayType: reservationFormData.stayType,
+          hourlyDuration: reservationFormData.hourlyDuration,
           adults: reservationFormData.adults,
           children: reservationFormData.children,
           seniorCitizenCount: payment.seniorCitizenCount || 0,
@@ -1495,20 +1682,129 @@ export default function ReservationProcess() {
             {step === 1 && (
               <Section
                 title="Step 1: Dates and Guests"
-                subtitle="Select your stay dates and number of guests."
+                subtitle="Choose overnight or an hourly package, then guest counts."
                 icon={<FiCalendar />}
                 right={
-                  nights > 0 && (
+                  reservationFormData.stayType === "hourly" ? (
                     <div className="text-sm text-gray-600">
-                      Nights:{" "}
+                      Duration:{" "}
                       <span className="font-semibold text-gray-900">
-                        {nights}
+                        {reservationFormData.hourlyDuration} hrs
                       </span>
                     </div>
+                  ) : (
+                    nights > 0 && (
+                      <div className="text-sm text-gray-600">
+                        Nights:{" "}
+                        <span className="font-semibold text-gray-900">
+                          {nights}
+                        </span>
+                      </div>
+                    )
                   )
                 }
               >
+                <div className="mb-4">
+                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                    Stay type *
+                  </label>
+                  <div className="flex gap-2">
+                    {[
+                      { value: "overnight", label: "Overnight" },
+                      { value: "hourly", label: "Hourly (3 / 6 / 12 hrs)" },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() =>
+                          setReservationFormData((prev) => ({
+                            ...prev,
+                            stayType: opt.value,
+                          }))
+                        }
+                        className={`h-10 px-4 rounded-xl text-sm font-medium border transition-all ${
+                          reservationFormData.stayType === opt.value
+                            ? "bg-[#0c2bfc] text-white border-[#0c2bfc]"
+                            : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {reservationFormData.stayType === "hourly" && (
+                  <div className="mb-4">
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      Package *
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {HOURLY_DURATIONS.map((hrs) => (
+                        <button
+                          key={hrs}
+                          type="button"
+                          onClick={() =>
+                            setReservationFormData((prev) => ({
+                              ...prev,
+                              hourlyDuration: hrs,
+                            }))
+                          }
+                          className={`h-10 px-4 rounded-xl text-sm font-medium border ${
+                            Number(reservationFormData.hourlyDuration) === hrs
+                              ? "bg-[#0c2bfc] text-white border-[#0c2bfc]"
+                              : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {hrs} hours
+                        </button>
+                      ))}
+                    </div>
+                    <FieldError text={errors.hourlyDuration} />
+                  </div>
+                )}
+
                 <div className="grid gap-4 sm:grid-cols-2">
+                  {reservationFormData.stayType === "hourly" ? (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          Start date & time *
+                        </label>
+                        <input
+                          type="datetime-local"
+                          min={todayISO + "T00:00"}
+                          value={reservationFormData.checkIn}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (!value) return;
+                            setReservationFormData({
+                              ...reservationFormData,
+                              checkIn: value,
+                            });
+                          }}
+                          className={`mt-1 w-full h-11 rounded-lg border px-4 text-sm outline-none focus:ring-2 focus:ring-[#0c2bfc]/20 focus:border-[#0c2bfc] transition-all duration-200 bg-white ${errors.checkIn ? "border-red-300 bg-red-50" : "border-gray-200"}`}
+                        />
+                        <FieldError text={errors.checkIn} />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">
+                          End time (computed)
+                        </label>
+                        <input
+                          type="datetime-local"
+                          value={reservationFormData.checkOut}
+                          readOnly
+                          className="mt-1 w-full h-11 rounded-lg border px-4 text-sm bg-gray-50 text-gray-700 border-gray-200"
+                        />
+                        <div className="mt-2 text-xs text-gray-500">
+                          Checkout is start time plus{" "}
+                          {reservationFormData.hourlyDuration} hours.
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
                   {/* Check In Date - Fixed time 2:00 PM */}
                   <div>
                     <label className="text-sm font-medium text-gray-700">
@@ -1518,7 +1814,6 @@ export default function ReservationProcess() {
                       <input
                         type="date"
                         min={(() => {
-                          // Get today's date in YYYY-MM-DD format
                           const today = new Date();
                           const year = today.getFullYear();
                           const month = String(today.getMonth() + 1).padStart(
@@ -1534,12 +1829,10 @@ export default function ReservationProcess() {
                           if (newDate) {
                             const selectedDate = new Date(newDate);
                             selectedDate.setHours(0, 0, 0, 0);
-                            // Check if selected date is today or future
                             const today = new Date();
                             today.setHours(0, 0, 0, 0);
 
                             if (selectedDate >= today) {
-                              // Always set time to 14:00 (2:00 PM)
                               const newDateTime = `${newDate}T14:00`;
                               setReservationFormData({
                                 ...reservationFormData,
@@ -1627,6 +1920,8 @@ export default function ReservationProcess() {
                     </div>
                     <FieldError text={errors.checkOut} />
                   </div>
+                    </>
+                  )}
 
                   {/* Adults */}
                   <div>
@@ -1719,7 +2014,12 @@ export default function ReservationProcess() {
                     </span>
                     <span className="text-gray-300">•</span>
                     <span>
-                      Nights: <b className="text-gray-900">{nights}</b>
+                      Stay:{" "}
+                      <b className="text-gray-900">
+                        {reservationFormData.stayType === "hourly"
+                          ? `${reservationFormData.hourlyDuration} hrs`
+                          : `${nights} night(s)`}
+                      </b>
                     </span>
                   </div>
                 }
@@ -1832,6 +2132,7 @@ export default function ReservationProcess() {
 
                       <FieldError text={errors.rooms} />
                       <FieldError text={errors.capacity} />
+                      <FieldError text={errors.addons} />
 
                       <div className="grid gap-3 md:grid-cols-2">
                         {filteredAvailableItems.map((item) => {
@@ -1902,7 +2203,19 @@ export default function ReservationProcess() {
                                     </div>
                                     <div className="text-xs text-gray-600 mt-2">
                                       Capacity: {item.capacity} • Rate:{" "}
-                                      {formatMoney(item.rate)} / night
+                                      {formatMoney(
+                                        reservationFormData.stayType ===
+                                          "hourly"
+                                          ? getHourlyRate(
+                                              item,
+                                              reservationFormData.hourlyDuration,
+                                            )
+                                          : item.rate,
+                                      )}{" "}
+                                      {stayRateLabel(
+                                        reservationFormData.stayType,
+                                        reservationFormData.hourlyDuration,
+                                      )}
                                     </div>
 
                                     {/* Image Gallery Button */}
@@ -1947,172 +2260,129 @@ export default function ReservationProcess() {
                                 {/* Add-Ons Section - ONLY for selected rooms */}
                                 {isSelected && !isCottage && (
                                   <div className="mt-4 pt-4 border-t border-gray-200">
-                                    <div className="text-sm font-semibold text-gray-900 mb-3">
+                                    <div className="text-sm font-semibold text-gray-900 mb-1">
                                       Add Amenities
                                     </div>
+                                    <div className="text-xs text-gray-500 mb-3">
+                                      Inactive and out-of-stock amenities are hidden.
+                                    </div>
                                     <div className="space-y-3">
-                                      {addOns.map((amenity) => {
-                                        const existingAmenity =
-                                          selectedRoom?.addOns?.find(
-                                            (a) => a.addOnId === amenity._id,
-                                          );
-                                        const quantity =
-                                          existingAmenity?.quantity || 0;
+                                      {getAddOnsForRoom(selectedRoom).length ===
+                                      0 ? (
+                                        <div className="text-xs text-gray-500 italic rounded-xl border border-dashed border-gray-200 bg-gray-50 px-3 py-3">
+                                          No amenities available to add.
+                                        </div>
+                                      ) : (
+                                        getAddOnsForRoom(selectedRoom).map(
+                                          (amenity) => {
+                                            const existingAmenity =
+                                              selectedRoom?.addOns?.find(
+                                                (a) =>
+                                                  a.addOnId === amenity._id,
+                                              );
+                                            const quantity =
+                                              existingAmenity?.quantity || 0;
+                                            const remaining =
+                                              getAddOnRemainingStock(
+                                                amenity._id,
+                                              );
+                                            const stockLevel = getStockLevel(
+                                              remaining,
+                                            );
+                                            const warning =
+                                              stockWarningMessage(
+                                                amenity,
+                                                remaining,
+                                              );
+                                            const cannotAdd =
+                                              remaining <= 0 ||
+                                              !isInventoryActive(amenity);
 
-                                        return (
-                                          <div
-                                            key={amenity._id}
-                                            className="flex items-center justify-between"
-                                          >
-                                            <div>
-                                              <div className="text-sm font-medium text-gray-900">
-                                                {amenity.name}
-                                              </div>
-                                              <div className="text-xs text-gray-500">
-                                                {formatMoney(amenity.rate)} per
-                                                item
-                                              </div>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  if (quantity > 0) {
-                                                    if (quantity === 1) {
-                                                      // Remove the amenity completely
-                                                      setRoomReservations(
-                                                        (prev) => {
-                                                          const updated = [
-                                                            ...prev,
-                                                          ];
-                                                          const roomIndex =
-                                                            updated.findIndex(
-                                                              (r) =>
-                                                                r.roomId ===
-                                                                item._id,
-                                                            );
-                                                          updated[
-                                                            roomIndex
-                                                          ].addOns = updated[
-                                                            roomIndex
-                                                          ].addOns.filter(
-                                                            (a) =>
-                                                              a.addOnId !==
-                                                              amenity._id,
-                                                          );
-                                                          return updated;
-                                                        },
-                                                      );
-                                                    } else {
-                                                      // Decrement quantity
-                                                      setRoomReservations(
-                                                        (prev) => {
-                                                          const updated = [
-                                                            ...prev,
-                                                          ];
-                                                          const roomIndex =
-                                                            updated.findIndex(
-                                                              (r) =>
-                                                                r.roomId ===
-                                                                item._id,
-                                                            );
-                                                          const amenityIndex =
-                                                            updated[
-                                                              roomIndex
-                                                            ].addOns.findIndex(
-                                                              (a) =>
-                                                                a.addOnId ===
-                                                                amenity._id,
-                                                            );
-                                                          updated[
-                                                            roomIndex
-                                                          ].addOns[
-                                                            amenityIndex
-                                                          ].quantity =
-                                                            quantity - 1;
-                                                          return updated;
-                                                        },
-                                                      );
+                                            return (
+                                              <div
+                                                key={amenity._id}
+                                                className="flex items-start justify-between gap-3"
+                                              >
+                                                <div className="min-w-0">
+                                                  <div className="text-sm font-medium text-gray-900">
+                                                    {amenity.name}
+                                                  </div>
+                                                  <div className="text-xs text-gray-500">
+                                                    {formatMoney(amenity.rate)}{" "}
+                                                    per item
+                                                  </div>
+                                                  <div
+                                                    className={`mt-1 inline-flex items-center gap-1 text-[11px] font-medium ${
+                                                      stockLevel === "out"
+                                                        ? "text-red-600"
+                                                        : stockLevel === "low"
+                                                          ? "text-amber-700"
+                                                          : "text-gray-500"
+                                                    }`}
+                                                  >
+                                                    {stockLevel !== "ok" && (
+                                                      <FiAlertTriangle size={12} />
+                                                    )}
+                                                    {remaining} available
+                                                    {stockLevel === "low"
+                                                      ? " (low stock)"
+                                                      : ""}
+                                                    {stockLevel === "out"
+                                                      ? " (out of stock)"
+                                                      : ""}
+                                                  </div>
+                                                  {warning && quantity === 0 && (
+                                                    <div className="mt-1 text-[11px] text-amber-700">
+                                                      {warning}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      adjustRoomAddOnQuantity(
+                                                        item._id,
+                                                        amenity,
+                                                        -1,
+                                                      )
                                                     }
-                                                  }
-                                                }}
-                                                disabled={quantity === 0}
-                                                className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-200 ${
-                                                  quantity === 0
-                                                    ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
-                                                    : "border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 text-gray-700 hover:text-[#0c2bfc]"
-                                                }`}
-                                              >
-                                                <FiMinus size={14} />
-                                              </button>
-                                              <span className="w-8 text-center text-sm font-medium text-gray-900">
-                                                {quantity}
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  if (quantity === 0) {
-                                                    // Add new amenity
-                                                    setRoomReservations(
-                                                      (prev) => {
-                                                        const updated = [
-                                                          ...prev,
-                                                        ];
-                                                        const roomIndex =
-                                                          updated.findIndex(
-                                                            (r) =>
-                                                              r.roomId ===
-                                                              item._id,
-                                                          );
-                                                        updated[
-                                                          roomIndex
-                                                        ].addOns.push({
-                                                          addOnId: amenity._id,
-                                                          quantity: 1,
-                                                        });
-                                                        return updated;
-                                                      },
-                                                    );
-                                                  } else {
-                                                    // Increment quantity
-                                                    setRoomReservations(
-                                                      (prev) => {
-                                                        const updated = [
-                                                          ...prev,
-                                                        ];
-                                                        const roomIndex =
-                                                          updated.findIndex(
-                                                            (r) =>
-                                                              r.roomId ===
-                                                              item._id,
-                                                          );
-                                                        const amenityIndex =
-                                                          updated[
-                                                            roomIndex
-                                                          ].addOns.findIndex(
-                                                            (a) =>
-                                                              a.addOnId ===
-                                                              amenity._id,
-                                                          );
-                                                        updated[
-                                                          roomIndex
-                                                        ].addOns[
-                                                          amenityIndex
-                                                        ].quantity =
-                                                          quantity + 1;
-                                                        return updated;
-                                                      },
-                                                    );
-                                                  }
-                                                }}
-                                                className="h-8 w-8 rounded-lg border border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 flex items-center justify-center transition-all duration-200 text-gray-700 hover:text-[#0c2bfc]"
-                                              >
-                                                <FiPlus size={14} />
-                                              </button>
-                                            </div>
-                                          </div>
-                                        );
-                                      })}
+                                                    disabled={quantity === 0}
+                                                    className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-200 ${
+                                                      quantity === 0
+                                                        ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
+                                                        : "border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 text-gray-700 hover:text-[#0c2bfc]"
+                                                    }`}
+                                                  >
+                                                    <FiMinus size={14} />
+                                                  </button>
+                                                  <span className="w-8 text-center text-sm font-medium text-gray-900">
+                                                    {quantity}
+                                                  </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      adjustRoomAddOnQuantity(
+                                                        item._id,
+                                                        amenity,
+                                                        1,
+                                                      )
+                                                    }
+                                                    disabled={cannotAdd}
+                                                    className={`h-8 w-8 rounded-lg border flex items-center justify-center transition-all duration-200 ${
+                                                      cannotAdd
+                                                        ? "border-gray-200 text-gray-300 cursor-not-allowed bg-gray-50"
+                                                        : "border-gray-300 hover:border-[#0c2bfc] hover:bg-[#0c2bfc]/5 text-gray-700 hover:text-[#0c2bfc]"
+                                                    }`}
+                                                  >
+                                                    <FiPlus size={14} />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            );
+                                          },
+                                        )
+                                      )}
                                     </div>
                                   </div>
                                 )}
@@ -3131,9 +3401,15 @@ export default function ReservationProcess() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Nights</span>
+                    <span className="text-gray-500">
+                      {reservationFormData.stayType === "hourly"
+                        ? "Duration"
+                        : "Nights"}
+                    </span>
                     <span className="font-medium text-gray-900">
-                      {nights || 0}
+                      {reservationFormData.stayType === "hourly"
+                        ? `${reservationFormData.hourlyDuration} hrs`
+                        : nights || 0}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -3180,7 +3456,10 @@ export default function ReservationProcess() {
                       <div className="space-y-1">
                         <div className="flex justify-between text-xs">
                           <span className="text-gray-500">
-                            {nights} × {formatMoney(roomTotal.roomRate)}
+                            {reservationFormData.stayType === "hourly"
+                              ? `${reservationFormData.hourlyDuration} hrs`
+                              : `${nights} ×`}{" "}
+                            {formatMoney(roomTotal.roomRate)}
                           </span>
                           <span>{formatMoney(roomTotal.roomSubtotal)}</span>
                         </div>

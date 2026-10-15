@@ -19,8 +19,11 @@ import Loader from "../components/layout/Loader.jsx";
 import RoomReservationModal from "../components/modals/RoomReservationModal.jsx";
 import { useReservationStore } from "../stores/reservationStore.js";
 import { useReservationRoomStore } from "../stores/reservationRoomStore.js";
-import { getUserRole } from "../app/auth.js";
+import { getUser, getUserRole } from "../app/auth.js";
 import Pagination from "../components/ui/Pagination.jsx";
+import ChangeRoomModal from "../components/modals/ChangeRoomModal.jsx";
+import { canManageReservationsOrFrontDesk } from "../utils/staffPermissions.js";
+import StayTypePill from "../components/ui/StayTypePill.jsx";
 
 function ImageCell({ images, roomNo, onPreview }) {
   const arr = Array.isArray(images) ? images : [];
@@ -58,7 +61,7 @@ function ImageCell({ images, roomNo, onPreview }) {
   );
 }
 
-function RoomCard({ roomData, onEdit, onView, onPreview, selected, onSelect }) {
+function RoomCard({ roomData, onEdit, onView, onPreview, onChangeRoom, selected, onSelect, canChangeRoom }) {
   const { roomId, addOns } = roomData;
   const money = (n) =>
     new Intl.NumberFormat("en-PH", {
@@ -185,6 +188,15 @@ function RoomCard({ roomData, onEdit, onView, onPreview, selected, onSelect }) {
         >
           <FiEdit2 className="w-4 h-4" /> Edit
         </button>
+        {canChangeRoom && (
+          <button
+            type="button"
+            onClick={() => onChangeRoom?.(roomData)}
+            className="h-10 px-4 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-sm font-medium text-amber-900"
+          >
+            Change room
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onView(roomId?._id)}
@@ -234,9 +246,17 @@ export default function RoomReservation() {
     reservationId: reservationId,
     reservationData: null,
   });
+  const [transferModal, setTransferModal] = useState({
+    open: false,
+    room: null,
+  });
 
   const role = getUserRole();
   const isAdmin = role === "admin" || role === "superadmin";
+  const canChangeRoom =
+    canManageReservationsOrFrontDesk(getUser()) &&
+    reservation &&
+    ["confirmed", "checked_in"].includes(reservation.status);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -426,6 +446,7 @@ export default function RoomReservation() {
                     <span className="font-medium text-gray-900">
                       Reservation #{reservation.reservationNumber}
                     </span>
+                    <StayTypePill reservation={reservation} />
                     <span className="text-gray-300">•</span>
                     <span>
                       Check-in:{" "}
@@ -567,6 +588,10 @@ export default function RoomReservation() {
               onEdit={openEditModal}
               onView={navigateToRoom}
               onPreview={() => {}}
+              onChangeRoom={(roomData) =>
+                setTransferModal({ open: true, room: roomData })
+              }
+              canChangeRoom={canChangeRoom}
               selected={selectedRooms.includes(roomData._id)}
               onSelect={toggleSelectRoom}
             />
@@ -705,7 +730,7 @@ export default function RoomReservation() {
                   <th className="text-left font-semibold text-gray-700 px-6 py-4">
                     Add-Ons
                   </th>
-                  {isAdmin && (
+                  {(isAdmin || canChangeRoom) && (
                     <th className="text-right font-semibold text-gray-700 px-6 py-4">
                       Actions
                     </th>
@@ -805,9 +830,10 @@ export default function RoomReservation() {
                         )}
                       </td>
 
-                      {isAdmin && (
+                      {(isAdmin || canChangeRoom) && (
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-2">
+                            {isAdmin && (
                             <button
                               type="button"
                               onClick={() => openEditModal(roomData)}
@@ -825,6 +851,18 @@ export default function RoomReservation() {
                             >
                               <FiEdit2 className="w-4 h-4" /> Edit
                             </button>
+                            )}
+                            {canChangeRoom && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setTransferModal({ open: true, room: roomData })
+                                }
+                                className="h-10 px-4 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-sm font-medium text-amber-900"
+                              >
+                                Change room
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}
@@ -889,6 +927,18 @@ export default function RoomReservation() {
             onSave={saveRoom}
           />
         )}
+
+        <ChangeRoomModal
+          open={transferModal.open}
+          reservation={reservation}
+          reservationRoom={transferModal.room}
+          onClose={() => setTransferModal({ open: false, room: null })}
+          onTransferred={async () => {
+            await fetchRoomsByReservationId(reservationId);
+            const updated = await fetchReservation(reservationId).catch(() => null);
+            if (updated) setReservation(updated);
+          }}
+        />
 
         {/* Loader overlay */}
         {loading && (

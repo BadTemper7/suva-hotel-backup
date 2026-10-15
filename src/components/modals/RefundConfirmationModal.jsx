@@ -8,6 +8,7 @@ import {
 import toast from "react-hot-toast";
 import Loader from "../layout/Loader.jsx";
 import { useBillingStore } from "../../stores/billingStore.js";
+import StayTypePill from "../ui/StayTypePill.jsx";
 
 const formatMoney = (n) =>
   new Intl.NumberFormat("en-PH", {
@@ -160,8 +161,9 @@ export default function RefundConfirmationModal({
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Reservation #:</span>
-                <span className="font-medium text-gray-900">
+                <span className="font-medium text-gray-900 inline-flex items-center gap-2">
                   {billing?.reservationId?.reservationNumber}
+                  <StayTypePill reservation={billing?.reservationId} />
                 </span>
               </div>
               <div className="flex justify-between items-center">

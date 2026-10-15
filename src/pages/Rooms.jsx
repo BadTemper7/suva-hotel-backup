@@ -192,7 +192,23 @@ function RoomCard({ room, onEdit, onPreview, selected, onSelect, canManage }) {
                 d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <span className="font-medium">{money(room.rate)}</span>
+                            <span className="font-medium">{money(room.rate)}</span>
+                            {(room.hourlyRates?.hours3 > 0 ||
+                              room.hourlyRates?.hours6 > 0 ||
+                              room.hourlyRates?.hours12 > 0) && (
+                              <span className="text-[10px] text-gray-500 block">
+                                {[3, 6, 12]
+                                  .filter(
+                                    (h) =>
+                                      Number(room.hourlyRates?.[`hours${h}`]) > 0,
+                                  )
+                                  .map(
+                                    (h) =>
+                                      `${h}h ${money(room.hourlyRates[`hours${h}`])}`,
+                                  )
+                                  .join(" · ")}
+                              </span>
+                            )}
           </div>
         </div>
 

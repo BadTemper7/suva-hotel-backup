@@ -11,6 +11,12 @@ import {
 import toast from "react-hot-toast";
 import { useAddOnStore } from "../../stores/addOnStore";
 import { useReservationStore } from "../../stores/reservationStore";
+import {
+  LOW_STOCK_THRESHOLD,
+  getStockLevel,
+  isInventoryActive,
+  isInventorySelectable,
+} from "../../utils/inventory";
 
 export default function RoomReservationModal({
   open,
@@ -135,20 +141,10 @@ export default function RoomReservationModal({
     }
   };
 
-  // Filter active add-ons
-  const activeAddOns = useMemo(() => {
-    return allAddOns.filter((addOn) => addOn.status === "active");
-  }, [allAddOns]);
-
-  // Get selected add-on details
-  const selectedAddOn = useMemo(() => {
-    return activeAddOns.find((a) => a._id === selectedAddOnId);
-  }, [activeAddOns, selectedAddOnId]);
-
   // Get available add-on stock (considering all selected rooms)
   const getAvailableStock = (addOnId) => {
     const addOn = allAddOns.find((a) => a._id === addOnId);
-    if (!addOn) return 0;
+    if (!addOn || !isInventoryActive(addOn)) return 0;
 
     // Check how many are already in current add-ons for all rooms
     let totalReserved = 0;
@@ -166,8 +162,27 @@ export default function RoomReservationModal({
       });
     }
 
-    return addOn.stock - totalReserved;
+    return Math.max(0, addOn.stock - totalReserved);
   };
+
+  // Only show active add-ons that still have remaining stock
+  const selectableAddOns = useMemo(() => {
+    return allAddOns.filter(
+      (addOn) => isInventorySelectable(addOn) && getAvailableStock(addOn._id) > 0,
+    );
+  }, [allAddOns, addOns, roomsWithAddOns, mode]);
+
+  // Get selected add-on details
+  const selectedAddOn = useMemo(() => {
+    return selectableAddOns.find((a) => a._id === selectedAddOnId);
+  }, [selectableAddOns, selectedAddOnId]);
+
+  useEffect(() => {
+    if (selectedAddOnId && !selectedAddOn) {
+      setSelectedAddOnId("");
+      setQuantity(1);
+    }
+  }, [selectedAddOnId, selectedAddOn]);
 
   // Handle selecting/deselecting rooms (add mode)
   const toggleRoomSelection = (roomId) => {
@@ -189,7 +204,7 @@ export default function RoomReservationModal({
 
   // Handle adding add-on to a specific room or to all selected rooms
   const handleAddAddOn = (targetRoomId = null) => {
-    if (!selectedAddOnId || quantity < 1) {
+    if (!selectedAddOnId || !selectedAddOn || quantity < 1) {
       toast.error("Please select an add-on and quantity");
       return;
     }
@@ -349,6 +364,19 @@ export default function RoomReservationModal({
   };
 
   const handleAddOnSelect = (addOnId) => {
+    const remaining = getAvailableStock(addOnId);
+    const addOn = allAddOns.find((a) => a._id === addOnId);
+    if (!addOn || !isInventoryActive(addOn) || remaining <= 0) {
+      toast.error(
+        `${addOn?.name || "This add-on"} is inactive or out of stock.`,
+      );
+      return;
+    }
+    if (remaining <= LOW_STOCK_THRESHOLD) {
+      toast(`Only ${remaining} ${addOn.name} available in stock.`, {
+        icon: "⚠️",
+      });
+    }
     setSelectedAddOnId(addOnId);
     setShowAddOnDropdown(false);
     setQuantity(1);
@@ -620,12 +648,12 @@ export default function RoomReservationModal({
                       {/* Add-On dropdown */}
                       {showAddOnDropdown && (
                         <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-white shadow-lg">
-                          {activeAddOns.length === 0 ? (
+                          {selectableAddOns.length === 0 ? (
                             <div className="px-4 py-3 text-sm text-gray-500">
-                              No add-ons available
+                              No active in-stock add-ons available
                             </div>
                           ) : (
-                            activeAddOns.map((addOn) => {
+                            selectableAddOns.map((addOn) => {
                               const availableStock = getAvailableStock(
                                 addOn._id,
                               );
@@ -656,12 +684,15 @@ export default function RoomReservationModal({
                                     <span>₱{addOn.rate} each</span>
                                     <span
                                       className={
-                                        availableStock === 0
-                                          ? "text-red-500"
+                                        getStockLevel(availableStock) === "low"
+                                          ? "text-amber-700 font-medium"
                                           : "text-gray-500"
                                       }
                                     >
-                                      Stock: {availableStock}
+                                      {availableStock} available
+                                      {getStockLevel(availableStock) === "low"
+                                        ? " (low stock)"
+                                        : ""}
                                     </span>
                                   </div>
                                   {addOn.description && (
@@ -931,12 +962,12 @@ export default function RoomReservationModal({
 
                       {showAddOnDropdown && (
                         <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto border border-gray-200 rounded-xl bg-white shadow-lg">
-                          {activeAddOns.length === 0 ? (
+                          {selectableAddOns.length === 0 ? (
                             <div className="px-4 py-3 text-sm text-gray-500">
-                              No add-ons available
+                              No active in-stock add-ons available
                             </div>
                           ) : (
-                            activeAddOns.map((addOn) => {
+                            selectableAddOns.map((addOn) => {
                               const availableStock = getAvailableStock(
                                 addOn._id,
                               );
@@ -967,12 +998,15 @@ export default function RoomReservationModal({
                                     <span>₱{addOn.rate} each</span>
                                     <span
                                       className={
-                                        availableStock === 0
-                                          ? "text-red-500"
+                                        getStockLevel(availableStock) === "low"
+                                          ? "text-amber-700 font-medium"
                                           : "text-gray-500"
                                       }
                                     >
-                                      Stock: {availableStock}
+                                      {availableStock} available
+                                      {getStockLevel(availableStock) === "low"
+                                        ? " (low stock)"
+                                        : ""}
                                     </span>
                                   </div>
                                 </div>
